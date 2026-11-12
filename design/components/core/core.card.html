@@ -1,0 +1,17 @@
+<!-- @dsCard group="Components" viewport="700x220" name="Core" subtitle="Button (pill) and Icon" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{padding:24px}.lbl{font:var(--type-caption);color:var(--text-secondary)}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const NS = window.WrenDesignSystem_f754eb;
+const { Button, Icon } = NS;
+function App(){return <div style={{display:'flex',flexDirection:'column',gap:18}}>
+<div style={{display:'flex',gap:12,alignItems:'center'}}><div style={{width:300}}><Button full>Send</Button></div><Button variant="secondary" size="md">Not now</Button><Button variant="ghost" size="md">Skip</Button><Button size="sm">Home</Button></div>
+<div style={{display:'flex',gap:12,alignItems:'center'}}><div style={{width:300}}><Button full disabled>Continue</Button></div><span className="lbl">disabled · press = scale .97 + darker blue</span></div>
+<div style={{display:'flex',gap:22,alignItems:'center'}}>{['chevron-left','search','delete','credit-card','x','check'].map(n=><Icon key={n} name={n} size={24}/>)}<span className="lbl">Lucide, 2px stroke</span></div>
+</div>}
+ReactDOM.createRoot(root).render(<App/>);
+</script></body></html>

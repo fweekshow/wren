@@ -1,0 +1,13 @@
+:root{
+--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;--space-12:48px;--space-16:64px;
+--screen-w:390px;--screen-h:844px;--screen-pad:24px;--status-h:54px;--home-indicator:34px;
+--radius-card:20px;--radius-pill:999px;--radius-face:50%;
+--button-h-lg:60px;--button-h-md:48px;--button-h-sm:36px;
+--hit-min:44px;
+--shadow-none:none;
+--ease-out:cubic-bezier(.2,.8,.2,1); /* @kind other */
+--ease-hop:cubic-bezier(.34,1.56,.64,1); /* @kind other */
+--dur-fast:120ms; /* @kind other */
+--dur-base:220ms; /* @kind other */
+--dur-hop:420ms; /* @kind other */
+}

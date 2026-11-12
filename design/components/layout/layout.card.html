@@ -1,0 +1,14 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Layout" subtitle="Phone (390×844) + PinnedAction, shown at 45%" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{padding:24px}.lbl{font:var(--type-caption);color:var(--text-secondary)}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const NS = window.WrenDesignSystem_f754eb;
+const { Phone, PinnedAction, Button, Wren } = NS;
+function App(){return <div style={{display:'flex',gap:24,alignItems:'flex-start'}}><div style={{zoom:0.42}}><Phone label="demo"><div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}><Wren size={200}/></div><PinnedAction><Button full>Send</Button></PinnedAction></Phone></div>
+<div className="lbl" style={{maxWidth:280,lineHeight:'20px'}}>390×844 white canvas. 54px status bar, 34px home indicator. The one action docks 24px from the sides, 34px from the bottom.</div></div>}
+ReactDOM.createRoot(root).render(<App/>);
+</script></body></html>
