@@ -39,8 +39,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      "expo-apple-authentication"
     ]
   }
 }

@@ -15,9 +15,10 @@ gifts, Apple Pay handoff) lives in the separate `basemate-v2` and
 
 ## Screens
 
-1. **Sign in.** Opens `https://basemate.app/mobile/sign-in` in the system
-   browser. On return, the `wren://connected#user=…&token=…` deep link carries
-   the session, which lands in `SecureStore`.
+1. **Sign in.** Native, via [Privy](https://privy.io) email + one-time code.
+   No web handoff. On success we mirror `{ user: user.id, token:
+   getAccessToken() }` into `SecureStore` so the request layer (which runs
+   outside React) can read it.
 2. **Home.** The total and the stock rows from `GET /api/app/portfolio`. Send
    stays if the request fails or the portfolio is empty.
 3. **Someone.** `expo-contacts`. Search matches first and last name. Email-only
@@ -70,36 +71,49 @@ npm run typecheck
 
 ## Environment
 
-Set one variable. The host **must be the channels / iMessage host** — the
-Express service that mounts `/api/app/*` and `/api/muse/*` (see
-`packages/core/src/entries/channelsApp.ts` in `basemate-v2`). It is **not** the
-xmtp-agent URL. Don't hardcode a Railway URL; pass it via the environment so
-preview and prod can point at different deployments.
+Three variables, all `EXPO_PUBLIC_*` so the client can read them:
 
 ```bash
 # .env.local (or your shell before `npm run start`)
 EXPO_PUBLIC_WREN_API_HOST=https://your-channels-host.example.com
+EXPO_PUBLIC_PRIVY_APP_ID=<your Privy app id>
+EXPO_PUBLIC_PRIVY_CLIENT_ID=<your Privy client id>   # optional, per Privy
 ```
 
-With the variable unset the app still builds, signs in, and renders every
-screen; it just can't fetch or post anything (Home keeps *Send*, Amount
-restores *Continue*, etc).
+- `EXPO_PUBLIC_WREN_API_HOST` **must be the channels / iMessage host** — the
+  Express service that mounts `/api/app/*` and `/api/muse/*` (see
+  `packages/core/src/entries/channelsApp.ts` in `basemate-v2`). It is **not**
+  the xmtp-agent URL. Don't hardcode a Railway URL; pass it via the
+  environment so preview and prod can point at different deployments.
+- `EXPO_PUBLIC_PRIVY_APP_ID` / `EXPO_PUBLIC_PRIVY_CLIENT_ID` come from the
+  Privy dashboard (**App settings → App ID** / **Clients**).
 
-## Deep link + iOS permissions
+With `EXPO_PUBLIC_WREN_API_HOST` unset the app still builds, signs in with
+Privy, and renders every screen; it just can't fetch or post anything (Home
+keeps *Send*, Amount restores *Continue*, etc).
 
-- URL scheme `wren://` is registered in [`app.json`](./app.json). The sign-in
-  page redirects to `wren://connected#user=…&token=…`; `App.tsx` parses the
-  fragment and stores it in `SecureStore`.
+> **Server note.** Today the server's `/api/app/*` routes authenticate on the
+> `{user, token}` CDP session minted by `/api/agent/app/session`. Moving Wren
+> to Privy means the server needs to accept a Privy access token under the
+> same `{user, token}` contract (or mint its own session from the Privy
+> identity token). That change is out of scope for this repo — track it in
+> the channels service, not here.
+
+## iOS permissions
+
 - `NSContactsUsageDescription` is set to *Allow contacts to choose someone.*
   on first prompt. If denied, the Someone screen shows the same line and a
   single **Settings** button that calls `Linking.openSettings()`.
+- The `wren://` scheme is registered for future deep links (notifications,
+  shared links). It is no longer required for sign in.
 
 ## Layout of the code
 
 ```
-App.tsx                        screen state + fonts + wren:// deep link
+index.ts                       Privy polyfills, then registerRootComponent
+App.tsx                        PrivyProvider + screen state + fonts
 src/api.ts                     typed client for /api/app/* and /api/muse/*
-src/auth.ts                    SecureStore session; parses the connected URL
+src/auth.ts                    SecureStore mirror of the Privy session
 src/contacts.ts                load + normalize + search the address book
 src/countries.ts               the short country dial-code list
 src/theme.ts                   tokens (colors, type, spacing) from design/

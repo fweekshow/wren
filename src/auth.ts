@@ -1,5 +1,7 @@
-// Session state. Reads `user` and `token` out of the wren://connected fragment
-// on return from the sign-in page and stores them in SecureStore.
+// SecureStore mirror of the Privy session. App.tsx watches `usePrivy()` and
+// calls `setSession()` whenever the Privy user (and thus the access token)
+// changes; api.ts reads the mirror on each request. Keeping SecureStore as
+// the source of truth lets api.ts work outside the React tree.
 
 import * as SecureStore from 'expo-secure-store';
 
@@ -47,20 +49,3 @@ export async function clearSession(): Promise<void> {
   loader = null;
 }
 
-// Parse the fragment from a wren://connected#user=...&token=... deep link.
-// Accepts either fragment or query form, since the sender might mix them up.
-export function parseConnectedUrl(url: string): Session | null {
-  if (!url) return null;
-  // Pull everything after the first `#` or `?`, whichever comes first.
-  const hash = url.indexOf('#');
-  const query = url.indexOf('?');
-  let paramStr = '';
-  if (hash >= 0) paramStr = url.slice(hash + 1);
-  else if (query >= 0) paramStr = url.slice(query + 1);
-  if (!paramStr) return null;
-  const params = new URLSearchParams(paramStr);
-  const user = params.get('user');
-  const token = params.get('token');
-  if (!user || !token) return null;
-  return { user, token };
-}
