@@ -3,7 +3,7 @@ import { createPublicKey, verify as verifySig } from "node:crypto";
 
 import { WalletAdapter } from "@/discovery/adapters/wallet.adapter.js";
 import { canonicalizeSenderId } from "@/messaging/utils/senderId.utils.js";
-import { phoneForPrivyUser, setPrivyUserId } from "@/messaging/wrenAccount.js";
+import { ensureWrenColumns, phoneForPrivyUser, setPrivyUserId } from "@/messaging/wrenAccount.js";
 import { connectPrefill, createConnectCode } from "@/messaging/wrenConnect.js";
 import { createPortfolioAccessToken } from "@/portfolio/access.js";
 import { logger } from "@/utils/logger.js";
@@ -53,7 +53,13 @@ async function verifyPrivyJwt(token: string, audience: string): Promise<JwtPaylo
   const jwk = jwksCache?.keys.find((key) => key.kid === header.kid) ?? jwksCache?.keys[0];
   if (!jwk) throw new Error("Missing sign-in key.");
   const key = createPublicKey({ key: jwk, format: "jwk" });
-  const ok = verifySig("sha256", Buffer.from(`${h}.${p}`), key, Buffer.from(s, "base64url"));
+  // JWS ES256 signatures are raw r||s (64 bytes), not DER — Node needs to be told.
+  const ok = verifySig(
+    "sha256",
+    Buffer.from(`${h}.${p}`),
+    { key, dsaEncoding: "ieee-p1363" },
+    Buffer.from(s, "base64url"),
+  );
   if (!ok) throw new Error("Bad token signature.");
   return payload;
 }
@@ -118,6 +124,9 @@ export async function privySession(req: Request, res: Response): Promise<void> {
       }
     }
     if (address.startsWith("0x")) {
+      // The wallet row's schema includes privy_user_id; add the column before
+      // the first insert, not after (setPrivyUserId would be too late).
+      await ensureWrenColumns();
       await WalletAdapter.setEmbeddedWallet(phone, {
         cdpUserId: walletId,
         address,
