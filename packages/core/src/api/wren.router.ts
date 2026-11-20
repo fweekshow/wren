@@ -3,6 +3,12 @@ import express, { Router, type Request, type Response } from "express";
 import { fulfillStockGift, StockGiftAdapter } from "@/wallet/stockGift.js";
 import { wrenSendCharge } from "@/discovery/stocks/giftStock.service.js";
 import {
+  startPriceHistoryJob,
+  stockMarket,
+  stockPriceHistory,
+  type PriceRange,
+} from "@/discovery/stocks/priceHistory.js";
+import {
   createWebStockGiftCheckout,
   WebGiftError,
 } from "@/api/webGift.service.js";
@@ -225,6 +231,37 @@ router.get("/privacy", (_req, res) => {
   res.type("html").send(privacyHtml);
 });
 
+// ── Market data (public) ────────────────────────────────────────────────────
+// Prices, "today" change and sparklines for every sendable stock.
+let marketCache: { at: number; body: unknown } | null = null;
+router.get("/api/app/market", async (_req: Request, res: Response) => {
+  try {
+    if (!marketCache || Date.now() - marketCache.at > 60_000) {
+      marketCache = { at: Date.now(), body: { items: await stockMarket() } };
+    }
+    res.json(marketCache.body);
+  } catch (err) {
+    logger.error({ err }, "GET /api/app/market");
+    res.status(500).json({ error: "Couldn't load prices." });
+  }
+});
+
+const RANGES = new Set(["1D", "1W", "1M", "1Y"]);
+router.get("/api/app/stocks/:symbol/history", async (req: Request, res: Response) => {
+  const range = String(req.query.range ?? "1D").toUpperCase();
+  if (!RANGES.has(range)) {
+    res.status(400).json({ error: "Pick 1D, 1W, 1M or 1Y." });
+    return;
+  }
+  try {
+    res.json(await stockPriceHistory(String(req.params.symbol), range as PriceRange));
+  } catch (err) {
+    logger.error({ err }, "GET /api/app/stocks/:symbol/history");
+    res.status(500).json({ error: "Couldn't load the chart." });
+  }
+});
+
 export function mountWrenApi(app: import("express").Express): void {
   app.use(router);
+  startPriceHistoryJob();
 }

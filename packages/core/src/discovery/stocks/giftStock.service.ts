@@ -263,6 +263,31 @@ export async function buildB20UsdcSpotBuy(args: {
  * Quote a stock gift: whole shares (`qty`) or dollar notional (`usd`).
  * Prices via Chainlink cross-checked against the Slipstream pool.
  */
+/**
+ * The live share price quotes use: Chainlink, switching to the Aerodrome
+ * USDC pool when Chainlink drifts >3% from it or the US market is closed.
+ * Null when neither can price the stock. Price history snapshots use this
+ * too, so charts and quotes always agree.
+ */
+export async function liveSharePriceUsd(
+  entry: StockTokenEntry,
+): Promise<{ priceUsd: number; source: StockGiftQuote["priceSource"] } | null> {
+  try {
+    const chainlink = await resolveStockNumerairePrice(entry);
+    const pool = await getSlipstreamUsdcPoolPriceUsd(entry.address);
+    if (pool && pool > 0) {
+      const driftBps = BigInt(Math.round((Math.abs(pool - chainlink.priceUsd) / chainlink.priceUsd) * 10_000));
+      if (driftBps > MAX_POOL_DRIFT_BPS || !chainlink.inMarketHours) {
+        return { priceUsd: pool, source: driftBps > MAX_POOL_DRIFT_BPS ? "pool" : "blend" };
+      }
+    }
+    return { priceUsd: chainlink.priceUsd, source: "chainlink" };
+  } catch {
+    const pool = await getSlipstreamUsdcPoolPriceUsd(entry.address).catch(() => null);
+    return pool && pool > 0 ? { priceUsd: pool, source: "pool" } : null;
+  }
+}
+
 export async function quoteStockGift(args: {
   symbol: string;
   qty?: string;
@@ -290,27 +315,12 @@ export async function quoteStockGift(args: {
     return { ok: false, error: "say how many shares (e.g. 1 Apple) or a dollar amount (e.g. $25 of Apple)." };
   }
 
-  let sharePriceUsd: number;
-  let priceSource: StockGiftQuote["priceSource"] = "chainlink";
-  try {
-    const chainlink = await resolveStockNumerairePrice(entry);
-    sharePriceUsd = chainlink.priceUsd;
-    const pool = await getSlipstreamUsdcPoolPriceUsd(entry.address);
-    if (pool && pool > 0) {
-      const driftBps = BigInt(Math.round((Math.abs(pool - sharePriceUsd) / sharePriceUsd) * 10_000));
-      if (driftBps > MAX_POOL_DRIFT_BPS || !chainlink.inMarketHours) {
-        sharePriceUsd = pool;
-        priceSource = driftBps > MAX_POOL_DRIFT_BPS ? "pool" : "blend";
-      }
-    }
-  } catch {
-    const pool = await getSlipstreamUsdcPoolPriceUsd(entry.address);
-    if (!pool || !(pool > 0)) {
-      return { ok: false, error: `couldn't price ${entry.symbol} right now — try again in a bit.` };
-    }
-    sharePriceUsd = pool;
-    priceSource = "pool";
+  const live = await liveSharePriceUsd(entry);
+  if (!live) {
+    return { ok: false, error: `couldn't price ${entry.symbol} right now — try again in a bit.` };
   }
+  const sharePriceUsd = live.priceUsd;
+  const priceSource: StockGiftQuote["priceSource"] = live.source;
 
   const plainName = formatStockPlainName(entry.symbol) ?? `${entry.name} stock`;
   let sharesHuman: string;
