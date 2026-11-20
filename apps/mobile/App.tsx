@@ -108,7 +108,7 @@ type Screen =
   | { name: 'someone'; symbol?: string }
   // What are you sending/buying? `who` = the person is already known;
   // `replace` = Change from Amount/Buy: put the pick back on that screen.
-  | { name: 'what'; purpose: 'send' | 'buy'; who?: { name: string; phone: string }; replace?: boolean }
+  | { name: 'what'; purpose: 'send' | 'buy' | 'browse'; who?: { name: string; phone: string }; replace?: boolean }
   | { name: 'connect' }
   | { name: 'addCash' }
   | { name: 'stock'; stock: Stock }
@@ -416,7 +416,12 @@ function Shell() {
     else go({ name: 'what', purpose: 'send', who });
   };
 
-  const pickStock = (w: Extract<Screen, { name: 'what' }>, symbol: string) => {
+  const pickStock = (w: Extract<Screen, { name: 'what' }>, stock: Stock) => {
+    const symbol = stock.symbol;
+    if (w.purpose === 'browse') {
+      go({ name: 'stock', stock });
+      return;
+    }
     if (w.replace) {
       // Pop the picker and set the stock on the screen under it.
       setStack((st) => {
@@ -440,6 +445,7 @@ function Shell() {
           onSend={() => go({ name: 'what', purpose: 'send' })}
           onBuy={() => go({ name: 'what', purpose: 'buy' })}
           onOpenStock={(stock) => go({ name: 'stock', stock })}
+          onAllStocks={() => go({ name: 'what', purpose: 'browse' })}
           onSettings={() => go({ name: 'settings' })}
           onActivity={() => go({ name: 'activity' })}
           onConnect={() => go({ name: 'connect' })}
@@ -501,7 +507,7 @@ function Shell() {
         />
       )}
       {screen.name === 'what' && (
-        <StockPickScreen purpose={screen.purpose} onBack={back} onPick={(st) => pickStock(screen, st.symbol)} />
+        <StockPickScreen purpose={screen.purpose} onBack={back} onPick={(st) => pickStock(screen, st)} />
       )}
       {screen.name === 'someone' && (
         <SomeoneScreen

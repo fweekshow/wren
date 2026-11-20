@@ -57,6 +57,7 @@ type Props = {
   onBuy: () => void;
   onOpenStock: (stock: Stock) => void;
   onSettings: () => void;
+  onAllStocks: () => void;
   onActivity: () => void;
   onConnect: () => void;
   onOpenPerson: (phone: string, name?: string) => void;
@@ -65,6 +66,8 @@ type Props = {
 
 const logo = require('../../assets/logo.png');
 const TILE_GAP = 10;
+// Account shows a few stocks; the full list is a tap away (it's searchable).
+const TILE_LIMIT = 6;
 
 /** Balance over today: cash + each stock's shares × its price along the sparkline. */
 export function balanceLine(cash: number, holdings: Portfolio['holdings'], market: Map<string, MarketItem>): {
@@ -239,9 +242,19 @@ export function AccountScreen(props: Props) {
 
       {toSend.length > 0 && (
         <View style={styles.section}>
-          <SectionLabel>{copy.stocksYouCanSend}</SectionLabel>
+          <SectionLabel
+            right={
+              toSend.length > TILE_LIMIT ? (
+                <Pressable onPress={props.onAllStocks} hitSlop={10} accessibilityRole="button">
+                  <Text style={styles.seeAll}>{copy.seeAllStocks(toSend.length)}</Text>
+                </Pressable>
+              ) : null
+            }
+          >
+            {copy.stocksYouCanSend}
+          </SectionLabel>
           <View style={[styles.grid, { marginTop: 12 }]}>
-            {toSend.map((s, i) => {
+            {toSend.slice(0, TILE_LIMIT).map((s, i) => {
               const m = market.get(s.symbol);
               return (
                 <StockTile

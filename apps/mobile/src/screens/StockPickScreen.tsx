@@ -16,7 +16,7 @@ import { usd2 } from '../fees';
 import { ticker } from '../format';
 
 type Props = {
-  purpose: 'send' | 'buy';
+  purpose: 'send' | 'buy' | 'browse';
   onBack: () => void;
   onPick: (stock: Stock) => void;
 };
@@ -98,7 +98,7 @@ export function StockPickScreen({ purpose, onBack, onPick }: Props) {
         windowSize={7}
         ListHeaderComponent={
           <View>
-            <Text style={styles.title}>{purpose === 'send' ? copy.whatSending : copy.whatBuying}</Text>
+            <Text style={styles.title}>{purpose === 'send' ? copy.whatSending : purpose === 'buy' ? copy.whatBuying : copy.allStocks}</Text>
             <SearchField value={q} onChange={setQ} placeholder={copy.searchStocks} style={{ marginTop: 20 }} />
             <View style={{ height: 20 }} />
           </View>
