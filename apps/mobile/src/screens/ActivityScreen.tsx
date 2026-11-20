@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, font, layout, radius, spacing, stockColor, type } from '../theme';
+import { color, font, layout, radius, spacing, stackColors, stockColor, type } from '../theme';
 import { HeaderBack } from '../components/HeaderBack';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
@@ -52,7 +52,9 @@ export function ActivityRows({
   const groups = [
     { label: copy.thisWeek, items: items.filter((a) => now - Date.parse(a.at) < WEEK_MS) },
     { label: copy.earlier, items: items.filter((a) => now - Date.parse(a.at) >= WEEK_MS) },
-  ].filter((g) => g.items.length);
+  ]
+    .filter((g) => g.items.length)
+    .map((g) => ({ ...g, colors: stackColors(g.items.map((a) => stockColor(a.symbol))) }));
   return (
     <View>
       {groups.map((g, gi) => (
@@ -62,7 +64,7 @@ export function ActivityRows({
             {g.items.map((a, i) => {
               const buy = a.kind === 'buy';
               const title = buy ? copy.youBought : (a.name ?? a.phone ?? copy.someone);
-              const sc = stockColor(a.symbol);
+              const sc = g.colors[i];
               return (
                 <Pressable
                   key={a.id}

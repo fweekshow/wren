@@ -10,9 +10,9 @@ Canvas: "Wren Color" (A + C). Adds color and a bolder face; everything else in t
 - **Moves:** never a solid red pill. On white: an arrow and the percent on a lime (up) or coral (down) chip, ink text. On a colored card: just the arrow and percent in the card's text color. RN: `Change` (`on` prop).
 - **Blue ownership changes:** Wren Blue #0050FA is now also a stock color. Base Blue #0000FF stays reserved for the one primary button.
 - **Choosing a stock:** never a sideways pill row. Send and Buy start with "What are you sending?" / "What are you buying?": a search field, then every stock as a wallet card (yours first, then all), built to scale past 100 stocks. Amount and Buy show the pick as one card in its color with a Change pill. RN: `StockPickScreen`, `ChosenStock`.
-- **Contacts:** your contacts on Wren are color tiles (one steady color per person, `personColor`) with a white initial circle and their latest move ("Bought Apple · 2h") or "Has Wren". Moves are a wallet stack in the color of the stock bought. Not on Wren yet stays a plain list with ink Send pills.
-- **Activity:** every send and buy is a wallet card in its stock's color, grouped This week / Earlier: who (or "You bought") and "$50 of Apple · 2h" on the left, where it is as a white pill on the right.
+- **Friends** (was Contacts/People): one job, send someone a stock. Headline, "Tap anyone to send them a stock.", search, then friends on Wren as a stack of person cards (their color, white face, latest buy, white Send pill), then everyone else as quiet gray cards under "Send one to invite them" (ink Send pill). No "on Wren" labels; no Moves section (Activity has yours, a friend's latest buy is on their card). RN: `PersonCard`.
 - **Stacked cards** have a 2px white outline so a card's top edge shows on a card of the same color.
+- **Color rule: identity first, never repeat a neighbor.** Stocks keep one color everywhere money shows (Account, picker, Stock page, Activity); friends keep their own (`personColor`). Every color has a lighter tint; when a card or tile would touch one of the same color (in a stack, or left/above in a grid), it takes the tint. RN: `stackColors`, `gridColors`.
 - **Logos:** still none. Company logos would replace the letter, pending a decision on sourcing and licensing.
 
 ## Update — Nov 2026

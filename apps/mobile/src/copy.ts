@@ -103,7 +103,7 @@ export const copy = {
   support: 'Support',
   // Account
   tabAccount: 'Account',
-  tabPeople: 'Contacts',
+  tabPeople: 'Friends',
   tabActivity: 'Activity',
   thisWeek: 'This week',
   boughtShort: (stock: string) => `Bought ${stock}`,
@@ -142,7 +142,11 @@ export const copy = {
   send: 'Send',
   home: 'Home',
   // People
-  yourPeople: 'Your contacts',
+  yourPeople: 'Your friends',
+  friendsSub: 'Tap anyone to send them a stock.',
+  searchFriends: 'Search friends',
+  inviteLabel: 'Send one to invite them',
+  noFriendMatch: (q: string) => `No one called “${q}”.`,
   peopleCount: (n: number) =>
     n === 0 ? 'None of your contacts are on Wren yet.' : n === 1 ? '1 of your contacts is on Wren.' : `${n} of your contacts are on Wren.`,
   noPeople: 'Send someone their first stock. When they join, their moves show up here.',
@@ -152,7 +156,7 @@ export const copy = {
   shareToSeeButton: 'Choose who sees yours',
   noMoves: 'No moves yet.',
   notOnWren: 'Not on Wren yet',
-  notOnWrenNote: 'Send them a stock and they’ll get a text.',
+  notOnWrenNote: 'You’ll text them a link from your phone.',
   // Stock
   rangeWord: { '1D': 'today', '1W': 'past week', '1M': 'past month', '1Y': 'past year' } as Record<string, string>,
   youHold: 'You hold',
