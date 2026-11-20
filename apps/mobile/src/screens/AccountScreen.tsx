@@ -242,17 +242,7 @@ export function AccountScreen(props: Props) {
 
       {toSend.length > 0 && (
         <View style={styles.section}>
-          <SectionLabel
-            right={
-              toSend.length > TILE_LIMIT ? (
-                <Pressable onPress={props.onAllStocks} hitSlop={10} accessibilityRole="button">
-                  <Text style={styles.seeAll}>{copy.seeAllStocks(toSend.length)}</Text>
-                </Pressable>
-              ) : null
-            }
-          >
-            {copy.stocksYouCanSend}
-          </SectionLabel>
+          <SectionLabel>{copy.stocksYouCanSend}</SectionLabel>
           <View style={[styles.grid, { marginTop: 12 }]}>
             {toSend.slice(0, TILE_LIMIT).map((s, i) => {
               const m = market.get(s.symbol);
@@ -271,6 +261,15 @@ export function AccountScreen(props: Props) {
               );
             })}
           </View>
+          {toSend.length > TILE_LIMIT && (
+            <Pressable
+              onPress={props.onAllStocks}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.seeAllButton, pressed && { backgroundColor: color.pressed }]}
+            >
+              <Text style={styles.seeAllButtonText}>{copy.seeAllStocks(toSend.length)}</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -380,16 +379,15 @@ export function AccountScreen(props: Props) {
         {tab === 'account' ? accountTab : tab === 'people' ? peopleTab : activityTab}
       </ScrollView>
       <View style={[styles.pinned, { paddingBottom: Math.max(insets.bottom, spacing.homeIndicator) }]}>
-        {channel !== undefined && (
+        {/* Only until a channel is on; after that it lives in Settings. */}
+        {channel === null && (
           <Pressable
             onPress={props.onConnect}
             hitSlop={8}
             accessibilityRole="button"
-            style={({ pressed }) => [!channel && styles.channelPill, pressed && { opacity: 0.8 }]}
+            style={({ pressed }) => [styles.channelPill, pressed && { opacity: 0.8 }]}
           >
-            <Text style={channel ? styles.channel : styles.channelPillText}>
-              {channel ? copy.channelLine(channel) : copy.channelNone}
-            </Text>
+            <Text style={styles.channelPillText}>{copy.channelNone}</Text>
           </Pressable>
         )}
         <View style={styles.actions}>
@@ -444,6 +442,15 @@ const styles = StyleSheet.create({
   price: { ...type.price, color: color.ink },
   valueCol: { width: 92, alignItems: 'flex-end', gap: 4 },
   seeAll: { ...type.label, color: color.ink },
+  seeAllButton: {
+    marginTop: 12,
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: color.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  seeAllButtonText: { fontFamily: font.bold, fontSize: 17, color: color.ink },
   whenText: { ...type.caption, color: color.textTertiary },
   faces: { paddingHorizontal: spacing.screenPad, gap: 14, marginTop: 24 },
   face: { width: 84, alignItems: 'center', gap: 8 },

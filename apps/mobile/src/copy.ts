@@ -113,7 +113,7 @@ export const copy = {
   searchStocks: 'Search stocks',
   yoursLabel: 'Yours',
   allStocks: 'All stocks',
-  seeAllStocks: (n: number) => `See all ${n}`,
+  seeAllStocks: (n: number) => `See all ${n} stocks`,
   youOwn: (v: string) => `You own ${v}`,
   noStockMatch: (q: string) => `No stock called “${q}”.`,
   changeStock: 'Change',
