@@ -433,9 +433,13 @@ const WALLET_TUCK = 26;
 
 const tileStyles = StyleSheet.create({
   tile: { borderRadius: 28, padding: 16, minHeight: 148 },
+  // The white outline keeps each card's top edge visible when it sits on a
+  // card of the same color (three Apple sends in a row).
   wallet: {
     height: 96,
     borderRadius: 30,
+    borderWidth: 2,
+    borderColor: color.canvas,
     paddingHorizontal: 20,
     paddingTop: 18,
     flexDirection: 'row',

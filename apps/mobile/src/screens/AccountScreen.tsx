@@ -19,7 +19,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { cashColor, color, layout, spacing, stockColor, type } from '../theme';
+import { cashColor, color, font, layout, personColor, spacing, stockColor, type } from '../theme';
 import { usd2 } from '../fees';
 import { copy } from '../copy';
 import { ticker, usdShort, when } from '../format';
@@ -261,6 +261,10 @@ export function AccountScreen(props: Props) {
   );
 
   const onWren = people?.onWren ?? [];
+  const personW = (width - 32 - TILE_GAP) / 2;
+  // Each person's newest move (moves come newest first).
+  const latestMove = new Map<string, Move>();
+  for (const m of moves?.items ?? []) if (!latestMove.has(m.phone)) latestMove.set(m.phone, m);
   const notOnWren = people?.notOnWren ?? [];
   const peopleTab = (
     <>
@@ -270,16 +274,37 @@ export function AccountScreen(props: Props) {
       </View>
 
       {onWren.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.faces}>
-          {onWren.map((p) => (
-            <Pressable key={p.phone} onPress={() => props.onOpenPerson(p.phone, p.name)} style={styles.face}>
-              <Avatar name={p.name} size={72} />
-              <Text style={styles.faceName} numberOfLines={1}>
-                {p.name.split(' ')[0]}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <View style={[styles.grid, { paddingHorizontal: 16, marginTop: 20 }]}>
+          {onWren.map((p) => {
+            const pc = personColor(p.name);
+            const last = latestMove.get(p.phone);
+            return (
+              <Pressable
+                key={p.phone}
+                onPress={() => props.onOpenPerson(p.phone, p.name)}
+                accessibilityRole="button"
+                accessibilityLabel={p.name}
+                style={({ pressed }) => [
+                  styles.personTile,
+                  { width: personW, backgroundColor: pc.bg },
+                  pressed && { transform: [{ scale: 0.97 }] },
+                ]}
+              >
+                <View style={styles.personFace}>
+                  <Text style={styles.personInitial}>{p.name.slice(0, 1).toUpperCase()}</Text>
+                </View>
+                <View>
+                  <Text style={[styles.personName, { color: pc.ink }]} numberOfLines={1}>
+                    {p.name.split(' ')[0]}
+                  </Text>
+                  <Text style={[styles.personLine, { color: pc.ink }]} numberOfLines={1}>
+                    {last ? `${copy.boughtShort(last.stockName)} · ${when(last.at)}` : copy.hasWren}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
       ) : (
         <View style={styles.padded}>
           <EmptyCard>{copy.noPeople}</EmptyCard>
@@ -301,24 +326,18 @@ export function AccountScreen(props: Props) {
                 {copy.shareToSee}
               </EmptyCard>
             ) : moves?.items.length ? (
-              <View style={{ gap: 14 }}>
-                {moves.items.map((m) => (
-                  <Pressable
+              <View>
+                {moves.items.map((m, i) => (
+                  <WalletCard
                     key={`${m.phone}-${m.at}`}
+                    first={i === 0}
+                    colors={stockColor(m.symbol)}
+                    name={copy.moveBought(m.name.split(' ')[0] || copy.someone, m.stockName)}
+                    tickerText={when(m.at)}
+                    value=""
+                    change={market.get(m.symbol)?.changePct}
                     onPress={() => props.onOpenPerson(m.phone, m.name)}
-                    style={styles.moveRow}
-                  >
-                    <Avatar name={m.name || '?'} size={40} />
-                    <View style={{ flexShrink: 1 }}>
-                      <BubbleCard from="them">
-                        {copy.moveBought(m.name.split(' ')[0] || copy.someone, m.stockName)}
-                      </BubbleCard>
-                      <View style={styles.moveMeta}>
-                        <Change value={market.get(m.symbol)?.changePct} />
-                        <Text style={styles.whenText}>{when(m.at)}</Text>
-                      </View>
-                    </View>
-                  </Pressable>
+                  />
                 ))}
               </View>
             ) : (
@@ -339,7 +358,9 @@ export function AccountScreen(props: Props) {
                 <Text style={[styles.body, { flex: 1 }]} numberOfLines={1}>
                   {p.name}
                 </Text>
-                <PillButton onPress={() => props.onSendTo(p)}>{copy.send}</PillButton>
+                <PillButton dark onPress={() => props.onSendTo(p)}>
+                  {copy.send}
+                </PillButton>
               </View>
             ))}
           </View>
@@ -422,6 +443,11 @@ const styles = StyleSheet.create({
   todayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP },
   stack: { marginTop: 12 },
+  personTile: { height: 150, borderRadius: 28, padding: 16, justifyContent: 'space-between' },
+  personFace: { width: 44, height: 44, borderRadius: 22, backgroundColor: color.canvas, alignItems: 'center', justifyContent: 'center' },
+  personInitial: { fontFamily: font.display, fontSize: 20, color: color.ink },
+  personName: { fontFamily: font.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.6 },
+  personLine: { fontFamily: font.uiRegular, fontSize: 13, lineHeight: 18, marginTop: 4, opacity: 0.85 },
   skel: { backgroundColor: color.card, borderRadius: 999 },
   section: { paddingHorizontal: spacing.screenPad, marginTop: 24 },
   stockRow: { minHeight: 72, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },

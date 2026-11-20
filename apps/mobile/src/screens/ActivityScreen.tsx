@@ -10,7 +10,7 @@ import { HeaderBack } from '../components/HeaderBack';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { PinnedAction } from '../components/PinnedAction';
-import { Card, rowLine } from '../components/Market';
+import { Card, SectionLabel } from '../components/Market';
 import { ActivityItem, getActivity } from '../api';
 import { copy } from '../copy';
 import { usdShort, when } from '../format';
@@ -33,19 +33,14 @@ export function stateLabel(a: ActivityItem): string {
   }
 }
 
-/** In their account reads as good news in Wren's people blue; the rest stay gray. */
-function StatePill({ a }: { a: ActivityItem }) {
-  const good = a.state === 'in_account';
-  const bought = a.state === 'bought';
-  return (
-    <View style={[styles.pill, good && { backgroundColor: color.wrenTint }, bought && { backgroundColor: color.lime }]}>
-      <Text style={[styles.pillText, good && { color: color.wrenWing }]} numberOfLines={1}>
-        {stateLabel(a)}
-      </Text>
-    </View>
-  );
-}
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const TUCK = 28;
 
+/**
+ * Wren Color (A + C): every send and buy is a card in its stock's color,
+ * stacked like a wallet and grouped This week / Earlier. Who and how much on
+ * the left; where it is as a white pill on the right.
+ */
 export function ActivityRows({
   items,
   onOpen,
@@ -53,38 +48,53 @@ export function ActivityRows({
   items: ActivityItem[];
   onOpen?: (a: ActivityItem) => void;
 }) {
+  const now = Date.now();
+  const groups = [
+    { label: copy.thisWeek, items: items.filter((a) => now - Date.parse(a.at) < WEEK_MS) },
+    { label: copy.earlier, items: items.filter((a) => now - Date.parse(a.at) >= WEEK_MS) },
+  ].filter((g) => g.items.length);
   return (
     <View>
-      {items.map((a, i) => {
-        const buy = a.kind === 'buy';
-        const name = buy ? copy.youBought : (a.name ?? a.phone ?? copy.someone);
-        const sc = stockColor(a.symbol);
-        return (
-          <Pressable
-            key={a.id}
-            disabled={!onOpen || (!a.phone && !buy)}
-            onPress={() => onOpen?.(a)}
-            style={[styles.row, rowLine(i, items.length)]}
-          >
-            {buy ? (
-              <View style={[styles.badge, { backgroundColor: sc.bg }]}>
-                <Text style={[styles.badgeText, { color: sc.ink }]}>{a.stockName.slice(0, 1)}</Text>
-              </View>
-            ) : (
-              <Avatar name={name} size={48} />
-            )}
-            <View style={styles.mid}>
-              <Text style={styles.name} numberOfLines={1}>
-                {name}
-              </Text>
-              <Text style={styles.what} numberOfLines={1}>
-                {copy.sendWhat(usdShort(a.usd), a.stockName)} · {when(a.at)}
-              </Text>
-            </View>
-            <StatePill a={a} />
-          </Pressable>
-        );
-      })}
+      {groups.map((g, gi) => (
+        <View key={g.label} style={{ marginTop: gi ? 24 : 0 }}>
+          <SectionLabel>{g.label}</SectionLabel>
+          <View style={{ marginTop: 12 }}>
+            {g.items.map((a, i) => {
+              const buy = a.kind === 'buy';
+              const title = buy ? copy.youBought : (a.name ?? a.phone ?? copy.someone);
+              const sc = stockColor(a.symbol);
+              return (
+                <Pressable
+                  key={a.id}
+                  disabled={!onOpen || (!a.phone && !buy)}
+                  onPress={() => onOpen?.(a)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${title}, ${copy.sendWhat(usdShort(a.usd), a.stockName)}, ${stateLabel(a)}`}
+                  style={({ pressed }) => [
+                    styles.card,
+                    { backgroundColor: sc.bg, marginTop: i ? -TUCK : 0 },
+                    pressed && { transform: [{ scale: 0.98 }] },
+                  ]}
+                >
+                  <View style={styles.mid}>
+                    <Text style={[styles.cardTitle, { color: sc.ink }]} numberOfLines={1}>
+                      {title}
+                    </Text>
+                    <Text style={[styles.cardWhat, { color: sc.ink }]} numberOfLines={1}>
+                      {copy.sendWhat(usdShort(a.usd), a.stockName)} · {when(a.at)}
+                    </Text>
+                  </View>
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText} numberOfLines={1}>
+                      {stateLabel(a)}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
@@ -174,13 +184,27 @@ const styles = StyleSheet.create({
   mid: { flex: 1, minWidth: 0, gap: 2 },
   name: { ...type.body, color: color.ink },
   what: { ...type.label, fontFamily: font.uiRegular, color: color.textSecondary },
+  card: {
+    height: 100,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: color.canvas,
+    paddingLeft: 20,
+    paddingRight: 14,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  cardTitle: { fontFamily: font.display, fontSize: 21, lineHeight: 26, letterSpacing: -0.4 },
+  cardWhat: { fontFamily: font.uiRegular, fontSize: 14, lineHeight: 19, marginTop: 2, opacity: 0.85 },
   pill: {
-    height: 32,
+    height: 30,
     paddingHorizontal: 12,
     borderRadius: radius.pill,
-    backgroundColor: color.card,
+    backgroundColor: color.canvas,
     justifyContent: 'center',
-    maxWidth: 150,
+    maxWidth: 160,
   },
   pillText: { fontFamily: font.uiSemiBold, fontSize: 13, color: color.ink },
   badge: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },

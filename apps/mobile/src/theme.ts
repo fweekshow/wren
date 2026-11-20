@@ -60,6 +60,12 @@ const STOCK_COLORS: StockColor[] = [
 // Fixed picks for the stocks Wren sells today, so the big names never clash.
 const FIXED: Record<string, number> = { AAPL: 0, NVDA: 1, TSLA: 2, META: 3, MSFT: 4, AMZN: 5, GOOGL: 6, MSTR: 3, SNDK: 4, SPCX: 6 };
 
+/** A person's tile color: steady per name, from the same palette. */
+export function personColor(name: string): StockColor {
+  const i = [...name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % STOCK_COLORS.length;
+  return STOCK_COLORS[(i + 3) % STOCK_COLORS.length];
+}
+
 export const cashColor: StockColor = { bg: color.sun, ink: color.ink, soft: '#3A3D44' };
 
 /** One color per stock, the same on every screen. */
