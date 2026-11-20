@@ -123,6 +123,8 @@ export function publicMuseSend(row: StockGiftRow) {
     mustPoll: status === "awaiting_payment" || status === "buying",
     pollEveryMs: 1000,
     pollPath: `/api/muse/sends/${row.id}`,
+    // How long an unopened send waits before it goes back to the sender.
+    holdHours: config.phoneEscrow.claimTtlHours,
     ...track,
   };
 }

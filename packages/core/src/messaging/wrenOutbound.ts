@@ -1,4 +1,4 @@
-import { createClient, template, text } from "@photon-ai/whatsapp-business";
+import { createClient } from "@photon-ai/whatsapp-business";
 
 import { config } from "@/config/config.js";
 import { logger } from "@/utils/logger.js";
@@ -41,14 +41,11 @@ export async function sendWhatsappNotice(args: {
     appSecret: config.whatsapp.appSecret,
   });
   const channel = await outboundChannel(args.phone);
-  if (channel === "template" && args.templateVars) {
-    const vars = args.templateVars;
-    await client.messages.send({
-      to: args.phone.replace(/^\+/, ""),
-      template: template("wren_stock_gift_claim", "en_US")
-        .body(text(vars.senderName), text(vars.amountUsd), text(vars.symbol))
-        .urlButton(0, text(vars.giftId)),
-    });
+  // WhatsApp policy: a business may only message people who opted in to it.
+  // "template" means this person never texted Wren or connected a chat, so
+  // send nothing; the sender shares the link from their own phone instead.
+  if (channel === "template") {
+    logger.info({ phone: args.phone }, "[wren] recipient not opted in; leaving it to the sender");
     return;
   }
   await client.messages.send({
@@ -62,8 +59,11 @@ export async function routeRecipientNotice(args: {
   message: string;
   sendImessage: (phone: string, message: string) => Promise<void>;
   templateVars?: { senderName: string; amountUsd: string; symbol: string; giftId: string };
-}): Promise<"whatsapp" | "imessage" | "template"> {
+}): Promise<"whatsapp" | "imessage" | "share"> {
   const channel = await outboundChannel(args.phone);
+  // Never message someone who hasn't opted in (WhatsApp policy, and iMessage
+  // spam reports). The app shows the sender a "Send them the link" button.
+  if (channel === "template") return "share";
   if (channel === "imessage") {
     await args.sendImessage(args.phone, args.message);
     return channel;
@@ -72,7 +72,6 @@ export async function routeRecipientNotice(args: {
     await sendWhatsappNotice({
       phone: args.phone,
       message: args.message,
-      templateVars: channel === "template" ? args.templateVars : undefined,
     });
     return channel;
   } catch (err) {

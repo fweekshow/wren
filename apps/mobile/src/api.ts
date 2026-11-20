@@ -326,6 +326,7 @@ export type GiftStatus = {
   claimUrl?: string | null;
   amountLabel?: string;
   stockLabel?: string | null;
+  holdHours?: number | null;
 };
 
 type RawStatusResponse = {
@@ -337,6 +338,7 @@ type RawStatusResponse = {
   claimUrl?: string | null;
   amountLabel?: string;
   stockLabel?: string | null;
+  holdHours?: number;
 };
 
 export async function getGiftStatus(giftId: string): Promise<GiftStatus> {
@@ -353,5 +355,6 @@ export async function getGiftStatus(giftId: string): Promise<GiftStatus> {
     claimUrl: raw.claimUrl ?? null,
     amountLabel: raw.amountLabel,
     stockLabel: raw.stockLabel ?? null,
+    holdHours: typeof raw.holdHours === 'number' ? raw.holdHours : null,
   };
 }
