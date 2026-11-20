@@ -2,6 +2,19 @@ import express, { Router, type Request, type Response } from "express";
 
 import { fulfillStockGift, StockGiftAdapter } from "@/wallet/stockGift.js";
 import { buyStockFromCash, WrenBuyError } from "@/wallet/wrenBuy.js";
+import { listSpotBuyableOffers } from "@/discovery/doppler/stockCatalog.js";
+import {
+  followersToNotify,
+  getVisibility,
+  listPeople,
+  movesFor,
+  profile,
+  recordMove,
+  setNotify,
+  setVisibility,
+  VISIBILITIES,
+  type Visibility,
+} from "@/people/wrenPeople.js";
 import { wrenSendCharge } from "@/discovery/stocks/giftStock.service.js";
 import {
   startPriceHistoryJob,
@@ -261,7 +274,19 @@ router.post("/api/app/buy", json, async (req: Request, res: Response) => {
       symbol: String(req.body?.symbol ?? ""),
       usd: Number(req.body?.usd),
     });
-    res.json(result);
+    // A move ("Sam bought Apple") — no amount. Followers who can see it get a push.
+    void (async () => {
+      await recordMove(user, "bought", result.symbol, result.txHash);
+      const followers = await followersToNotify(user);
+      for (const f of followers) {
+        const p = await profile(f, user).catch(() => null);
+        const name = p?.name ?? "Someone";
+        void sendPush(f, `${name} bought ${stockDisplayName(result.symbol)}`, "Tap to see what they hold.");
+      }
+    })().catch((err) => logger.warn({ err }, "[wren] move/notify failed"));
+    // First buy: the app asks who should see moves.
+    const privacy = await getVisibility(user).catch(() => ({ chosen: true }));
+    res.json({ ...result, askPrivacy: !privacy.chosen });
   } catch (err) {
     if (err instanceof WrenBuyError) {
       res.status(err.status).json({ error: err.message, ...(err.details ?? {}) });
@@ -269,6 +294,90 @@ router.post("/api/app/buy", json, async (req: Request, res: Response) => {
     }
     logger.error({ err }, "POST /api/app/buy");
     res.status(500).json({ error: "That didn't go through." });
+  }
+});
+
+// ── People, moves and privacy ───────────────────────────────────────────────
+function stockDisplayName(symbol: string): string {
+  return listSpotBuyableOffers().find((o) => o.symbol === symbol)?.name ?? symbol.replace(/c$/, "");
+}
+
+router.get("/api/app/people", async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await listPeople(user));
+  } catch (err) {
+    logger.error({ err }, "GET /api/app/people");
+    res.status(500).json({ error: "Couldn't load your people." });
+  }
+});
+
+router.get("/api/app/moves", async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  try {
+    const mine = await getVisibility(user);
+    res.setHeader("Cache-Control", "no-store");
+    // sharing:false → the app shows "Share yours to see theirs."
+    res.json({ sharing: mine.visibility !== "only_me", items: await movesFor(user) });
+  } catch (err) {
+    logger.error({ err }, "GET /api/app/moves");
+    res.status(500).json({ error: "Couldn't load moves." });
+  }
+});
+
+router.get("/api/app/people/:phone", async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await profile(user, String(req.params.phone)));
+  } catch (err) {
+    logger.error({ err }, "GET /api/app/people/:phone");
+    res.status(500).json({ error: "Couldn't load that profile." });
+  }
+});
+
+router.post("/api/app/people/:phone/notify", json, async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  try {
+    await setNotify(user, String(req.params.phone), Boolean(req.body?.notify));
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "POST /api/app/people/:phone/notify");
+    res.status(500).json({ error: "That didn't save." });
+  }
+});
+
+router.get("/api/app/privacy", async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await getVisibility(user));
+  } catch (err) {
+    logger.error({ err }, "GET /api/app/privacy");
+    res.status(500).json({ error: "Couldn't load that." });
+  }
+});
+
+router.post("/api/app/privacy", json, async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  const visibility = String(req.body?.visibility ?? "") as Visibility;
+  if (!VISIBILITIES.includes(visibility)) {
+    res.status(400).json({ error: "Pick only_me, your_people or everyone." });
+    return;
+  }
+  try {
+    await setVisibility(user, visibility);
+    res.json({ visibility, chosen: true });
+  } catch (err) {
+    logger.error({ err }, "POST /api/app/privacy");
+    res.status(500).json({ error: "That didn't save." });
   }
 });
 
