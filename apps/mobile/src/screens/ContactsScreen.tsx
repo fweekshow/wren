@@ -5,7 +5,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, spacing, type } from '../theme';
+import { color, layout, spacing, type } from '../theme';
+import { TopBar } from '../components/HeaderBack';
 import { Button } from '../components/Button';
 import { PinnedAction } from '../components/PinnedAction';
 import { copy } from '../copy';
@@ -41,9 +42,11 @@ export function ContactsScreen({ onDone, onSkip }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <TopBar />
       <View style={styles.stage}>
         <Text style={styles.title}>{copy.contactsTitle}</Text>
         <Text style={styles.body}>{copy.contactsBody}</Text>
+        <Text style={styles.trust}>{copy.contactsTrust}</Text>
       </View>
       <PinnedAction>
         <Button loading={busy} onPress={() => void onContinue()}>
@@ -80,7 +83,7 @@ const styles = StyleSheet.create({
   stage: {
     flex: 1,
     paddingHorizontal: spacing.screenPad,
-    paddingTop: 32,
+    paddingTop: layout.titleGap,
   },
   title: { ...type.headline, color: color.ink },
   body: {
@@ -88,5 +91,6 @@ const styles = StyleSheet.create({
     color: color.textSecondary,
     marginTop: 14,
   },
+  trust: { ...type.label, color: color.ink, marginTop: 20 },
   gap: { height: 10 },
 });

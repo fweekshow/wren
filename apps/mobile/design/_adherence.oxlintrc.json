@@ -126,14 +126,6 @@
       {
         "selector": "JSXOpeningElement[name.name='StockRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|ticker|value|change|last|onClick|key|ref|className|style|children)$/]",
         "message": "<StockRow> doesn't accept that prop. Declared props: name, ticker, value, change, last, onClick."
-      },
-      {
-        "selector": "JSXOpeningElement[name.name='Wren'] > JSXAttribute > JSXIdentifier[name!=/^(?:pose|size|src|flip|style|title|key|ref|className|style|children)$/]",
-        "message": "<Wren> doesn't accept that prop. Declared props: pose, size, src, flip, style, title."
-      },
-      {
-        "selector": "JSXOpeningElement[name.name='Wren'] > JSXAttribute[name.name='pose'] > Literal[value!=/^(?:perch|point|carry|cheer)$/]",
-        "message": "<Wren> pose must be one of 'perch' | 'point' | 'carry' | 'cheer'."
       }
     ]
   },
@@ -228,7 +220,6 @@
       "--gray-50",
       "--gray-60",
       "--gray-80",
-      "--halo",
       "--hit-min",
       "--home-indicator",
       "--ink",
@@ -323,7 +314,6 @@
       "--people-face": "color",
       "--people-face-2": "color",
       "--people-initial": "color",
-      "--halo": "color",
       "--move-up": "color",
       "--move-down": "color",
       "--move-text": "font",

@@ -1,8 +1,12 @@
+// Claim: what they were sent, as a gray message bubble from the sender, like
+// Welcome. One button: Sign in, or Home once it has landed. No illustration.
+
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, type } from '../theme';
-import { Wren } from '../components/Wren';
+import { color, layout, spacing } from '../theme';
+import { TopBar } from '../components/HeaderBack';
+import { BubbleCard } from '../components/BubbleCard';
 import { Button } from '../components/Button';
 import { PinnedAction } from '../components/PinnedAction';
 import { copy } from '../copy';
@@ -46,9 +50,9 @@ export function ClaimScreen({ giftId, signedIn, onSignIn, onHome }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <TopBar />
       <View style={styles.stage}>
-        <Wren size={210} />
-        <Text style={styles.line}>{line}</Text>
+        <BubbleCard from="them">{line}</BubbleCard>
       </View>
       <PinnedAction>
         <Button onPress={signedIn || done ? onHome : onSignIn}>
@@ -61,6 +65,9 @@ export function ClaimScreen({ giftId, signedIn, onSignIn, onHome }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
-  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  line: { ...type.titleSm, color: color.ink, textAlign: 'center', paddingHorizontal: 24 },
+  stage: {
+    flex: 1,
+    paddingHorizontal: spacing.screenPad,
+    paddingTop: layout.titleGap,
+  },
 });

@@ -3,7 +3,7 @@
 --base-blue:#0000FF;
 --gray-0:#FFFFFF;--gray-10:#EEF0F3;--gray-15:#DEE1E7;--gray-30:#B1B7C3;--gray-50:#717886;--gray-60:#5B616E;--gray-80:#32353D;--gray-100:#0A0B0D;
 --base-green:#66C800;--base-red:#FC401F;
-/* Wren — sampled from assets/wren.png */
+/* Wren blues — people and bubbles */
 --wren-blue:#0050FA;--wren-wing:#0028C3;--wren-belly:#BCCDFB;--wren-tint:#E3EAFE;--wren-ink:#0028C3;
 --base-blue-press:#0000C8;
 --white:var(--gray-0);--ink:var(--gray-100);
@@ -23,7 +23,7 @@
 --people-face:var(--wren-tint);
 --people-face-2:var(--wren-belly);
 --people-initial:var(--wren-ink);
---halo:var(--wren-tint);
+
 --move-up:var(--base-green);
 --move-down:var(--base-red);
 --move-text:var(--gray-100);

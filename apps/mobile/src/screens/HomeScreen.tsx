@@ -13,7 +13,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, spacing, type } from '../theme';
+import { color, layout, spacing, type } from '../theme';
+import { TopBar } from '../components/HeaderBack';
 import { copy } from '../copy';
 import { getConnectState, getPortfolio, getStocks, Portfolio, Stock } from '../api';
 import { BubbleCard } from '../components/BubbleCard';
@@ -80,6 +81,7 @@ export function HomeScreen({ onSend, onConnect }: Props) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
+        <TopBar />
         <View style={styles.hero}>
           <BigNumber value={portfolio.total} align="left" />
           <Text style={styles.why}>{copy.homeWhy}</Text>
@@ -126,7 +128,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     paddingHorizontal: spacing.screenPad,
-    paddingTop: 32,
+    paddingTop: layout.titleGap,
   },
   why: {
     ...type.bodyRegular,

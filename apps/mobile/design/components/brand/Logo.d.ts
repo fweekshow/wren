@@ -1,5 +1,5 @@
 /**
- * Logo — the Wren mark. A blue chat bird (assets/logo.png). This is the app icon and the logo. The round bird is the mascot, rendered by Wren.
+ * Logo — the Wren mark. A blue chat bird (assets/logo.png). This is the app icon and the logo.
  * @startingPoint section="Brand" subtitle="The logo and app icon" viewport="700x280"
  */
 export interface LogoProps {

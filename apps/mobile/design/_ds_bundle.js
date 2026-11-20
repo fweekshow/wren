@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"WrenDesignSystem_f754eb","components":[{"name":"Wren","sourcePath":"components/brand/Wren.jsx"},{"name":"Logo","sourcePath":"components/brand/Logo.jsx"},{"name":"Button","sourcePath":"components/core/Button.jsx"},{"name":"Icon","sourcePath":"components/core/Icon.jsx"},{"name":"Phone","sourcePath":"components/layout/Phone.jsx"},{"name":"PinnedAction","sourcePath":"components/layout/Phone.jsx"},{"name":"BigNumber","sourcePath":"components/money/BigNumber.jsx"},{"name":"Change","sourcePath":"components/money/Change.jsx"},{"name":"StockList","sourcePath":"components/money/StockRow.jsx"},{"name":"StockPicker","sourcePath":"components/money/StockPicker.jsx"},{"name":"StockRow","sourcePath":"components/money/StockRow.jsx"},{"name":"Avatar","sourcePath":"components/people/Avatar.jsx"},{"name":"PersonTile","sourcePath":"components/people/PersonTile.jsx"},{"name":"SearchField","sourcePath":"components/people/SearchField.jsx"},{"name":"WREN_FEE","sourcePath":"components/send/FeeLine.jsx"},{"name":"FeeLine","sourcePath":"components/send/FeeLine.jsx"},{"name":"Keypad","sourcePath":"components/send/Keypad.jsx"},{"name":"PayChoice","sourcePath":"components/send/PayChoice.jsx"},{"name":"Presets","sourcePath":"components/send/Presets.jsx"}],"sourceHashes":{"components/brand/Wren.jsx":"5bb66c1cb486","components/core/Button.jsx":"f95c506f95c5","components/core/Icon.jsx":"676ef14a12fc","components/layout/Phone.jsx":"38261d849885","components/layout/PinnedAction.jsx":"02b0f68f6f5a","components/money/BigNumber.jsx":"fb4987cf52b0","components/money/Change.jsx":"38189e8b9f9a","components/money/StockList.jsx":"5d683a67f8f1","components/money/StockPicker.jsx":"7cd8bb709371","components/money/StockRow.jsx":"f67e344cc7b0","components/people/Avatar.jsx":"8e0ff591730d","components/people/PersonTile.jsx":"ce9bdcfc9053","components/people/SearchField.jsx":"aed2ee479b30","components/send/FeeLine.jsx":"ea227f51bc1b","components/send/Keypad.jsx":"f3d5eca81087","components/send/PayChoice.jsx":"767dd34bc11b","components/send/Presets.jsx":"9acf7bc55373","ui_kits/wren/AmountScreen.jsx":"fbdcaedfcfe7","ui_kits/wren/HomeScreen.jsx":"82ff3593315c","ui_kits/wren/SentScreen.jsx":"8e8473aa5e2b","ui_kits/wren/SomeoneScreen.jsx":"d608e2f7ad24","ui_kits/wren/data.js":"312644556149"},"inlinedExternals":[],"unexposedExports":[{"name":"applyKey","sourcePath":"components/send/Keypad.jsx"},{"name":"totalFor","sourcePath":"components/send/FeeLine.jsx"}]} */
+/* @ds-bundle: {"format":4,"namespace":"WrenDesignSystem_f754eb","components":[{"name":"Logo","sourcePath":"components/brand/Logo.jsx"},{"name":"Button","sourcePath":"components/core/Button.jsx"},{"name":"Icon","sourcePath":"components/core/Icon.jsx"},{"name":"Phone","sourcePath":"components/layout/Phone.jsx"},{"name":"PinnedAction","sourcePath":"components/layout/Phone.jsx"},{"name":"BigNumber","sourcePath":"components/money/BigNumber.jsx"},{"name":"Change","sourcePath":"components/money/Change.jsx"},{"name":"StockList","sourcePath":"components/money/StockRow.jsx"},{"name":"StockPicker","sourcePath":"components/money/StockPicker.jsx"},{"name":"StockRow","sourcePath":"components/money/StockRow.jsx"},{"name":"Avatar","sourcePath":"components/people/Avatar.jsx"},{"name":"PersonTile","sourcePath":"components/people/PersonTile.jsx"},{"name":"SearchField","sourcePath":"components/people/SearchField.jsx"},{"name":"WREN_FEE","sourcePath":"components/send/FeeLine.jsx"},{"name":"FeeLine","sourcePath":"components/send/FeeLine.jsx"},{"name":"Keypad","sourcePath":"components/send/Keypad.jsx"},{"name":"PayChoice","sourcePath":"components/send/PayChoice.jsx"},{"name":"Presets","sourcePath":"components/send/Presets.jsx"}],"sourceHashes":{"components/core/Button.jsx":"f95c506f95c5","components/core/Icon.jsx":"676ef14a12fc","components/layout/Phone.jsx":"38261d849885","components/layout/PinnedAction.jsx":"02b0f68f6f5a","components/money/BigNumber.jsx":"fb4987cf52b0","components/money/Change.jsx":"38189e8b9f9a","components/money/StockList.jsx":"5d683a67f8f1","components/money/StockPicker.jsx":"7cd8bb709371","components/money/StockRow.jsx":"f67e344cc7b0","components/people/Avatar.jsx":"8e0ff591730d","components/people/PersonTile.jsx":"ce9bdcfc9053","components/people/SearchField.jsx":"aed2ee479b30","components/send/FeeLine.jsx":"ea227f51bc1b","components/send/Keypad.jsx":"f3d5eca81087","components/send/PayChoice.jsx":"767dd34bc11b","components/send/Presets.jsx":"9acf7bc55373","ui_kits/wren/AmountScreen.jsx":"fbdcaedfcfe7","ui_kits/wren/HomeScreen.jsx":"82ff3593315c","ui_kits/wren/SentScreen.jsx":"8e8473aa5e2b","ui_kits/wren/SomeoneScreen.jsx":"d608e2f7ad24","ui_kits/wren/data.js":"312644556149"},"inlinedExternals":[],"unexposedExports":[{"name":"applyKey","sourcePath":"components/send/Keypad.jsx"},{"name":"totalFor","sourcePath":"components/send/FeeLine.jsx"}]} */
 
 (() => {
 
@@ -7,43 +7,6 @@ const __ds_ns = (window.WrenDesignSystem_f754eb = window.WrenDesignSystem_f754eb
 const __ds_scope = {};
 
 (__ds_ns.__errors = __ds_ns.__errors || []);
-
-// components/brand/Wren.jsx
-try { (() => {
-// The official Wren art (assets/wren.png). Only the standing pose exists so far; other poses fall back to it.
-const SCRIPT = typeof document !== 'undefined' && document.currentScript && document.currentScript.src;
-const DEFAULT_BASE = SCRIPT ? new URL('assets/', SCRIPT).href : 'assets/';
-const ART = {
-  perch: 'wren.png',
-  point: 'wren.png',
-  carry: 'wren.png',
-  cheer: 'wren.png'
-};
-function Wren({
-  pose = 'perch',
-  size = 160,
-  src,
-  flip = false,
-  style,
-  title = 'Wren'
-}) {
-  const base = typeof window !== 'undefined' && window.WREN_ASSETS || DEFAULT_BASE;
-  return /*#__PURE__*/React.createElement("img", {
-    src: src || base + (ART[pose] || ART.perch),
-    alt: title,
-    width: size,
-    height: Math.round(size * 537 / 640),
-    draggable: false,
-    style: {
-      display: 'block',
-      userSelect: 'none',
-      transform: flip ? 'scaleX(-1)' : 'none',
-      ...style
-    }
-  });
-}
-Object.assign(__ds_scope, { Wren });
-})(); } catch (e) { __ds_ns.__errors.push({ path: "components/brand/Wren.jsx", error: String((e && e.message) || e) }); }
 
 // components/core/Button.jsx
 try { (() => {
@@ -805,7 +768,6 @@ function AmountScreen({
     Phone,
     PinnedAction,
     Button,
-    Wren,
     BigNumber,
     StockPicker,
     Presets,
@@ -863,12 +825,7 @@ function AmountScreen({
       alignItems: 'center',
       paddingTop: 8
     }
-  }, /*#__PURE__*/React.createElement(Wren, {
-    size: 96,
-    style: {
-      marginBottom: 6
-    }
-  }), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       height: 92,
       display: 'flex',
@@ -933,7 +890,6 @@ function HomeScreen({
     Phone,
     PinnedAction,
     Button,
-    Wren,
     BigNumber,
     Change,
     StockList,
@@ -950,12 +906,7 @@ function HomeScreen({
       alignItems: 'center',
       paddingTop: 40
     }
-  }, /*#__PURE__*/React.createElement(Wren, {
-    size: 150,
-    style: {
-      marginBottom: 6
-    }
-  }), /*#__PURE__*/React.createElement(BigNumber, {
+  }, /*#__PURE__*/React.createElement(BigNumber, {
     value: total
   }), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1011,22 +962,6 @@ function SentScreen({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      width: 260,
-      height: 260,
-      borderRadius: '50%',
-      background: 'var(--halo)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 40
-    }
-  }, /*#__PURE__*/React.createElement(Wren, {
-    size: 210,
-    style: {
-      marginTop: -20
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
       font: 'var(--type-name)',
       fontSize: 56,
       letterSpacing: 'var(--tracking-display)',
@@ -1055,7 +990,6 @@ function SomeoneScreen({
 }) {
   const {
     Phone,
-    Wren,
     SearchField,
     PersonTile,
     Icon
@@ -1089,9 +1023,7 @@ function SomeoneScreen({
       alignItems: 'center',
       gap: 14
     }
-  }, /*#__PURE__*/React.createElement(Wren, {
-    size: 84
-  }), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       font: 'var(--type-title)',
       fontSize: 32,
@@ -1197,7 +1129,6 @@ window.WREN_DATA = {
 };
 })(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/wren/data.js", error: String((e && e.message) || e) }); }
 
-__ds_ns.Wren = __ds_scope.Wren;
 
 const __logoBase = (typeof document !== 'undefined' && document.currentScript)
   ? new URL('assets/', document.currentScript.src).href

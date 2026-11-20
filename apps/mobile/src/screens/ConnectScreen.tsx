@@ -11,11 +11,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, font, spacing, type } from '../theme';
+import { color, font, layout, spacing, type } from '../theme';
 import { Button } from '../components/Button';
 import { BubbleCard } from '../components/BubbleCard';
 import { ChannelTile } from '../components/ChannelTile';
-import { HeaderBack } from '../components/HeaderBack';
+import { HeaderBack, TopBar } from '../components/HeaderBack';
 import { PinnedAction } from '../components/PinnedAction';
 import { copy } from '../copy';
 import { track } from '../observe';
@@ -202,7 +202,7 @@ export function ConnectScreen(props: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {props.mode === 'settings' ? <HeaderBack onBack={props.onBack} /> : <View style={styles.topGap} />}
+      {props.mode === 'settings' ? <HeaderBack onBack={props.onBack} /> : <TopBar />}
       <View style={styles.body}>
         <Text style={styles.headline}>{headline}</Text>
         <Text style={styles.sub}>{sub}</Text>
@@ -239,8 +239,7 @@ export function ConnectScreen(props: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
-  topGap: { height: 20 },
-  body: { paddingHorizontal: spacing.screenPad, paddingTop: 12 },
+  body: { paddingHorizontal: spacing.screenPad, paddingTop: layout.titleGap },
   headline: { ...type.headline, color: color.ink },
   sub: { ...type.bodyRegular, color: color.textSecondary, marginTop: 14 },
   tiles: { marginTop: 28, gap: 12 },

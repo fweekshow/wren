@@ -19,7 +19,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, font, radius, spacing, type } from '../theme';
+import { color, font, layout, radius, spacing, type } from '../theme';
 import { SearchField } from '../components/SearchField';
 import { PersonTile } from '../components/PersonTile';
 import { Avatar } from '../components/Avatar';
@@ -253,6 +253,7 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
       ) : (
         <>
           <Text style={styles.permCopy}>{copy.contactsBody}</Text>
+          <Text style={styles.permTrust}>{copy.contactsTrust}</Text>
           <PinnedAction>
             <Button onPress={perm === 'denied' ? openSettings : ask}>
               {perm === 'denied' ? copy.contactsSettings : copy.contactsButton}
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
   title: {
     paddingHorizontal: spacing.screenPad,
-    paddingTop: 12,
+    paddingTop: layout.titleGap,
   },
   titleText: { ...type.headline, color: color.ink },
   search: { paddingHorizontal: spacing.screenPad, paddingTop: 24, paddingBottom: 8 },
@@ -299,6 +300,12 @@ const styles = StyleSheet.create({
     paddingTop: 40,
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  permTrust: {
+    ...type.label,
+    color: color.ink,
+    marginTop: 20,
+    paddingHorizontal: spacing.screenPad,
+  },
   permCopy: {
     ...type.bodyRegular,
     color: color.textSecondary,

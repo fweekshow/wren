@@ -1,5 +1,5 @@
 function AmountScreen({ person, ticker, setTicker, amount, setAmount, pay, setPay, onContinue }) {
-  const { Phone, PinnedAction, Button, Wren, BigNumber, StockPicker, Presets, Keypad, applyKey, PayChoice, FeeLine, Avatar, Icon } = window.WrenDesignSystem_f754eb;
+  const { Phone, PinnedAction, Button, BigNumber, StockPicker, Presets, Keypad, applyKey, PayChoice, FeeLine, Avatar, Icon } = window.WrenDesignSystem_f754eb;
   const n = Number(amount) || 0;
   return (
     <Phone label="03 Amount">
@@ -10,7 +10,6 @@ function AmountScreen({ person, ticker, setTicker, amount, setAmount, pay, setPa
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8 }}>
-        <Wren size={96} style={{ marginBottom: 6 }} />
         <div style={{ height: 92, display: 'flex', alignItems: 'center' }}>
           <BigNumber value={n} size="amount" cents={String(amount).includes('.')} />
         </div>

@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, spacing, type } from '../theme';
+import { color, layout, spacing, type } from '../theme';
 import { BubbleCard } from '../components/BubbleCard';
 import { BigNumber } from '../components/BigNumber';
 import { StockPicker } from '../components/StockPicker';
@@ -25,6 +25,7 @@ import { HeaderBack } from '../components/HeaderBack';
 import { getGiftStatus, getStocks, sendGift, startPay, Stock, type PayMethod } from '../api';
 import { copy } from '../copy';
 import { track } from '../observe';
+import { sendTotal, usd2 } from '../fees';
 import type { Person } from '../contacts';
 
 type Props = {
@@ -197,9 +198,15 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
             ))}
           </View>
         )}
-        {chargeUsd != null && phase === 'waiting' && (
+        {numeric > 0 && (
+          // The price before Pay, never a surprise after. Once the server
+          // answers, its own charge wins.
           <Text style={styles.total}>
-            Total ${chargeUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · includes $2.99 Wren
+            {(() => {
+              const est = sendTotal(numeric);
+              const total = chargeUsd ?? est.totalUsd;
+              return `${copy.total} ${usd2(total)} · ${copy.includes} ${usd2(Math.max(0, total - numeric))} ${copy.inFees}`;
+            })()}
           </Text>
         )}
         <Button
@@ -218,7 +225,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
   hero: {
     paddingHorizontal: spacing.screenPad,
-    paddingTop: 8,
+    paddingTop: layout.titleGap,
   },
   bubble: {
     minWidth: 160,

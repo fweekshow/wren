@@ -1,6 +1,6 @@
 import React from 'react';
 
-// The Wren mark: a chat bird. This is the app icon and the logo. The round bird in Wren.jsx is the mascot.
+// The Wren mark: a chat bird. This is the app icon and the logo.
 const SCRIPT = typeof document !== 'undefined' && document.currentScript && document.currentScript.src;
 const DEFAULT_BASE = SCRIPT ? new URL('assets/', SCRIPT).href : 'assets/';
 

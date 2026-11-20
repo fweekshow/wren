@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -16,15 +17,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLoginWithEmail, useLoginWithSMS } from '@privy-io/expo';
-import { color, font, radius, spacing, type } from '../theme';
+import { color, font, layout, radius, spacing, type } from '../theme';
 import { Button } from '../components/Button';
-import { BubbleCard } from '../components/BubbleCard';
-import { HeaderBack } from '../components/HeaderBack';
+import { HeaderBack, TopBar } from '../components/HeaderBack';
 import { PinnedAction } from '../components/PinnedAction';
 import { copy } from '../copy';
 import { apiHost } from '../api';
 import { COUNTRIES, usesPhoneLogin, type Country } from '../countries';
 import { CountryPickerScreen } from './CountryPickerScreen';
+
+// The chat-bird logo, in Welcome's top bar: the first thing people see.
+const LOGO = require('../../assets/logo.png');
 
 const UNITED_STATES = COUNTRIES.find((c) => c.code === 'US') ?? COUNTRIES[0];
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
@@ -145,11 +148,15 @@ export function SignInScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {phase === 'welcome' ? (
-          <View style={styles.welcome}>
-            <BubbleCard from="them">{copy.welcomeExample}</BubbleCard>
-            <Text style={[styles.welcomeTitle]}>{copy.welcomeTitle}</Text>
-            <Text style={styles.sub}>{copy.welcomeBody}</Text>
-          </View>
+          <>
+            <TopBar>
+              <Image source={LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="Wren" />
+            </TopBar>
+            <View style={styles.body}>
+              <Text style={styles.welcomeTitle}>{copy.welcomeTitle}</Text>
+              <Text style={styles.sub}>{copy.welcomeBody}</Text>
+            </View>
+          </>
         ) : (
           <>
             <HeaderBack onBack={back} />
@@ -246,12 +253,15 @@ export function SignInScreen() {
                     <Text style={styles.inlineLink} onPress={() => void Linking.openURL(`${origin}/terms`)}>
                       {copy.terms}
                     </Text>
-                    {' · '}
+                    {' and '}
                     <Text style={styles.inlineLink} onPress={() => void Linking.openURL(`${origin}/privacy`)}>
                       {copy.privacy}
                     </Text>
+                    {'.'}
                   </>
-                ) : null}
+                ) : (
+                  `${copy.terms} and ${copy.privacy}.`
+                )}
               </Text>
             ) : null}
           </View>
@@ -289,14 +299,9 @@ function toCopy(err: unknown): string {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
   fill: { flex: 1 },
-  welcome: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.screenPad,
-    paddingBottom: 190,
-  },
-  welcomeTitle: { ...type.headlineXl, color: color.ink, marginTop: 40 },
-  body: { paddingHorizontal: spacing.screenPad, paddingTop: 12 },
+  logo: { width: 40, height: 40 },
+  welcomeTitle: { ...type.headlineXl, color: color.ink },
+  body: { paddingHorizontal: spacing.screenPad, paddingTop: layout.titleGap },
   headline: { ...type.headline, color: color.ink },
   sub: { ...type.bodyRegular, color: color.textSecondary, marginTop: 14 },
   phoneRow: { marginTop: 28, height: 56, flexDirection: 'row', alignItems: 'center', gap: 12 },

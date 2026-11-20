@@ -1,4 +1,4 @@
-// Sent: "Sent to", their first name at 96, then the send as your blue bubble
+// Sent: top-aligned like every screen. "Sent to", their first name at 96, then the send as your blue bubble
 // ("$50 of Apple.") with one line under it ("Text sent" / "It's in their
 // Wren."), like a delivered text. Home is the only button. No illustration.
 // AmountScreen already waited for status === 'sent' before pushing here.
@@ -6,7 +6,8 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, spacing, type } from '../theme';
+import { color, layout, spacing, type } from '../theme';
+import { TopBar } from '../components/HeaderBack';
 import { BubbleCard } from '../components/BubbleCard';
 import { Button } from '../components/Button';
 import { PinnedAction } from '../components/PinnedAction';
@@ -50,6 +51,7 @@ export function SentScreen({ giftId, personName, usd, companyName, onHome }: Pro
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <TopBar />
       <View style={styles.stage}>
         <Text style={styles.label}>{copy.sentTo}</Text>
         <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
@@ -71,9 +73,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
   stage: {
     flex: 1,
-    justifyContent: 'flex-end',
     paddingHorizontal: spacing.screenPad,
-    paddingBottom: 170,
+    paddingTop: layout.titleGap,
   },
   label: {
     ...type.bodyRegular,

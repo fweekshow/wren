@@ -42,6 +42,13 @@ export const radius = {
   tile: 24,
 } as const;
 
+// Every screen: a 44px top bar (back arrow, the logo on Welcome, or empty),
+// then the headline 12px below it. Same spot on every screen.
+export const layout = {
+  topBar: 44,
+  titleGap: 12,
+} as const;
+
 export const spacing = {
   screenPad: 24,
   homeIndicator: 34,

@@ -4,7 +4,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, radius, spacing, type } from '../theme';
+import { color, layout, radius, spacing, type } from '../theme';
+import { TopBar } from '../components/HeaderBack';
 import { Button } from '../components/Button';
 import { PinnedAction } from '../components/PinnedAction';
 import { copy } from '../copy';
@@ -16,6 +17,7 @@ type Props = {
 export function AllowScreen({ onAllow }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <TopBar />
       <View style={styles.stage}>
         <Text style={styles.title}>{copy.allowTitle}</Text>
         <View style={styles.card}>
@@ -28,6 +30,7 @@ export function AllowScreen({ onAllow }: Props) {
             </View>
           ))}
         </View>
+        <Text style={styles.trust}>{copy.allowTrust}</Text>
       </View>
       <PinnedAction>
         <Button onPress={onAllow}>{copy.allowButton}</Button>
@@ -41,7 +44,7 @@ const styles = StyleSheet.create({
   stage: {
     flex: 1,
     paddingHorizontal: spacing.screenPad,
-    paddingTop: 32,
+    paddingTop: layout.titleGap,
   },
   title: { ...type.headline, color: color.ink },
   card: {
@@ -72,6 +75,7 @@ const styles = StyleSheet.create({
     ...type.label,
     color: color.ink,
   },
+  trust: { ...type.label, color: color.ink, marginTop: 20 },
   line: {
     ...type.bodyRegular,
     color: color.ink,

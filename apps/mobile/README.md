@@ -4,10 +4,9 @@ iOS app. Pick someone you know and send them a stock.
 
 An [Expo](https://expo.dev) app at the repo root. The design system that drives
 every pixel lives in [`design/`](./design) — read
-[`design/readme.md`](./design/readme.md) for the content and visual rules. The
-mascot used on every screen is [`design/assets/wren.png`](./design/assets/wren.png);
-a copy is wired through `assets/wren.png` for the Expo splash + icon. The orange
-birds in `design/uploads/` are retired.
+[`design/readme.md`](./design/readme.md) for the content and visual rules. There
+is no mascot. The logo ([`assets/logo.png`](./assets/logo.png)) is the app icon
+and splash.
 
 This repo is the app only. The server (iMessage + WhatsApp channels, stock
 gifts, Apple Pay handoff) lives in the separate `basemate-v2` and

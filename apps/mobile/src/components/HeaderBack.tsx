@@ -1,9 +1,10 @@
 // A plain back chevron that stays at hit-min (44x44). Used on Someone,
-// Amount, and the country sheet.
+// Amount, and the country sheet. TopBar is the same 44px row for screens
+// with no back arrow, so headlines start at the same height everywhere.
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { color, type } from '../theme';
+import { color, layout, spacing, type } from '../theme';
 import { Icon } from './Icon';
 
 type Props = {
@@ -28,9 +29,19 @@ export function HeaderBack({ onBack, title, right }: Props) {
   );
 }
 
+export function TopBar({ children }: { children?: React.ReactNode }) {
+  return <View style={styles.bar}>{children}</View>;
+}
+
 const styles = StyleSheet.create({
+  bar: {
+    height: layout.topBar,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.screenPad,
+  },
   wrap: {
-    height: 44,
+    height: layout.topBar,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
