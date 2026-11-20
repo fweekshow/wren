@@ -1,7 +1,8 @@
 // Account, the home screen. Top bar: logo · Account | People · Settings.
 //
-// Account tab (Wren Bold, B7): a big balance with today's change, stocks as
-// tiles (your biggest in Wren Blue) plus Cash, and the latest send as a bubble.
+// Account tab (Wren Color): a big balance with today's change, what you own
+// as a wallet stack (Cash last), what you can send as color tiles.
+// Activity tab: your sends and buys, newest first. Only you see it.
 // People tab: your people on Wren, their moves (only if you share yours),
 // and people not on Wren yet, each with Send.
 // Pinned: the channel line, then Buy | Send.
@@ -41,10 +42,12 @@ import { BigNumber } from '../components/BigNumber';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
 import { Card, Change, PillButton, rowLine, SectionLabel, Segmented, StockTile, WalletCard } from '../components/Market';
+import { ActivityRows, EmptyCard } from './ActivityScreen';
+import { Icon } from '../components/Icon';
 import { BubbleCard } from '../components/BubbleCard';
-import { EmptyCard, stateLabel } from './ActivityScreen';
 
-type Tab = 'account' | 'people';
+export type HomeTab = 'account' | 'people' | 'activity';
+type Tab = HomeTab;
 
 type Props = {
   tab: Tab;
@@ -55,7 +58,7 @@ type Props = {
   onSettings: () => void;
   onActivity: () => void;
   onConnect: () => void;
-  onOpenPerson: (phone: string) => void;
+  onOpenPerson: (phone: string, name?: string) => void;
   onSendTo: (p: WrenPerson) => void;
 };
 
@@ -148,9 +151,18 @@ export function AccountScreen(props: Props) {
         options={[
           { value: 'account', label: copy.tabAccount },
           { value: 'people', label: copy.tabPeople },
+          { value: 'activity', label: copy.tabActivity },
         ]}
       />
-      <PillButton onPress={props.onSettings}>{copy.settings}</PillButton>
+      <Pressable
+        onPress={props.onSettings}
+        accessibilityRole="button"
+        accessibilityLabel={copy.settings}
+        hitSlop={6}
+        style={({ pressed }) => [styles.gear, pressed && { backgroundColor: color.pressed }]}
+      >
+        <Icon name="settings" size={20} color={color.ink} />
+      </Pressable>
     </View>
   );
 
@@ -158,7 +170,6 @@ export function AccountScreen(props: Props) {
   const sorted = [...holdings].sort((a, b) => b.value - a.value);
   const held = new Set(holdings.map((h) => h.symbol));
   const toSend = stocks.filter((s) => !held.has(s.symbol));
-  const latest = activity?.[0];
 
   const accountTab = (
     <>
@@ -246,39 +257,6 @@ export function AccountScreen(props: Props) {
         </View>
       )}
 
-      <View style={styles.section}>
-        <SectionLabel
-          right={
-            activity?.length ? (
-              <Pressable onPress={props.onActivity} hitSlop={10}>
-                <Text style={styles.seeAll}>{copy.seeAll}</Text>
-              </Pressable>
-            ) : null
-          }
-        >
-          {copy.latest}
-        </SectionLabel>
-        <View style={{ marginTop: 10 }}>
-          {latest ? (
-            <Pressable
-              onPress={() => latest.phone && props.onOpenPerson(latest.phone)}
-              style={{ alignSelf: 'flex-end', alignItems: 'flex-end' }}
-            >
-              <BubbleCard from="you">
-                {copy.youSentWho(
-                  (latest.name ?? latest.phone ?? copy.someone).split(' ')[0],
-                  copy.sendWhat(usdShort(latest.usd), latest.stockName),
-                )}
-              </BubbleCard>
-              <Text style={[styles.whenText, { marginTop: 6 }]}>
-                {stateLabel(latest)} · {when(latest.at)}
-              </Text>
-            </Pressable>
-          ) : (
-            <EmptyCard>{copy.noSends}</EmptyCard>
-          )}
-        </View>
-      </View>
     </>
   );
 
@@ -294,7 +272,7 @@ export function AccountScreen(props: Props) {
       {onWren.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.faces}>
           {onWren.map((p) => (
-            <Pressable key={p.phone} onPress={() => props.onOpenPerson(p.phone)} style={styles.face}>
+            <Pressable key={p.phone} onPress={() => props.onOpenPerson(p.phone, p.name)} style={styles.face}>
               <Avatar name={p.name} size={72} />
               <Text style={styles.faceName} numberOfLines={1}>
                 {p.name.split(' ')[0]}
@@ -327,7 +305,7 @@ export function AccountScreen(props: Props) {
                 {moves.items.map((m) => (
                   <Pressable
                     key={`${m.phone}-${m.at}`}
-                    onPress={() => props.onOpenPerson(m.phone)}
+                    onPress={() => props.onOpenPerson(m.phone, m.name)}
                     style={styles.moveRow}
                   >
                     <Avatar name={m.name || '?'} size={40} />
@@ -370,6 +348,27 @@ export function AccountScreen(props: Props) {
     </>
   );
 
+  const activityTab = (
+    <View style={styles.hero}>
+      <Text style={styles.headline}>{copy.activity}</Text>
+      <Text style={styles.sub}>{copy.onlyYou}</Text>
+      <View style={{ marginTop: 16 }}>
+        {activity?.length ? (
+          <ActivityRows
+            items={activity}
+            onOpen={(a) =>
+              a.kind === 'buy'
+                ? props.onOpenStock({ symbol: a.symbol, name: a.stockName })
+                : a.phone && props.onOpenPerson(a.phone, a.name ?? undefined)
+            }
+          />
+        ) : activity ? (
+          <EmptyCard>{copy.noSends}</EmptyCard>
+        ) : null}
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {top}
@@ -378,7 +377,7 @@ export function AccountScreen(props: Props) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {tab === 'account' ? accountTab : peopleTab}
+        {tab === 'account' ? accountTab : tab === 'people' ? peopleTab : activityTab}
       </ScrollView>
       <View style={[styles.pinned, { paddingBottom: Math.max(insets.bottom, spacing.homeIndicator) }]}>
         {channel !== undefined && (
@@ -409,6 +408,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   logo: { width: 34, height: 34, resizeMode: 'contain' },
+  gear: { width: 40, height: 40, borderRadius: 20, backgroundColor: color.card, alignItems: 'center', justifyContent: 'center' },
   hero: { paddingHorizontal: spacing.screenPad, paddingTop: 20 },
   padded: { paddingHorizontal: spacing.screenPad, marginTop: 20 },
   label: { ...type.label, color: color.textSecondary },

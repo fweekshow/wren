@@ -1,5 +1,8 @@
-// Activity: the stocks you sent, newest first, with where each one is.
+// Activity: what you did with your money, newest first — sends and buys.
+// Only you see it, so buys keep their dollar amount here (the shared "moves"
+// feed never stores one).
 //
+// A send's state:
 // sending    paid, Wren is buying and passing it over
 // in_account it landed in their Wren (they had an account, or they got it)
 // waiting    they don't have Wren yet; the link is open
@@ -15,6 +18,7 @@ import { PhoneEscrowAdapter } from "@/wallet/phoneEscrow.js";
 import { claimStateFromEscrowStatus } from "@/portfolio/claimState.js";
 
 export type SendState = "sending" | "in_account" | "waiting" | "returned" | "failed";
+export type ActivityState = SendState | "bought";
 
 export function sendState(row: {
   txHash: string | null;
@@ -42,16 +46,76 @@ const STALE_SEND_MS = 60 * 60 * 1000;
 
 export type ActivityItem = {
   id: string;
+  kind: "send" | "buy";
   name: string | null;
   phone: string | null;
   symbol: string;
   stockName: string;
   usd: number;
-  state: SendState;
+  state: ActivityState;
   at: string;
 };
 
+let buysReady: Promise<void> | null = null;
+function ensureBuys(): Promise<void> {
+  buysReady ??= db
+    .query(
+      `CREATE TABLE IF NOT EXISTS wren_buys (
+         id      BIGSERIAL PRIMARY KEY,
+         owner   TEXT NOT NULL,
+         symbol  TEXT NOT NULL,
+         usd     NUMERIC NOT NULL,
+         tx_hash TEXT UNIQUE,
+         at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+       );
+       CREATE INDEX IF NOT EXISTS wren_buys_owner_at ON wren_buys (owner, at DESC);`,
+    )
+    .then(() => undefined)
+    .catch((err) => {
+      buysReady = null;
+      throw err;
+    });
+  return buysReady;
+}
+
+/** A Buy, for your own Activity only. */
+export async function recordBuy(owner: string, symbol: string, usd: number, txHash: string | null): Promise<void> {
+  await ensureBuys();
+  await db.query(
+    `INSERT INTO wren_buys (owner, symbol, usd, tx_hash) VALUES ($1, $2, $3, $4) ON CONFLICT (tx_hash) DO NOTHING`,
+    [owner, symbol, usd, txHash],
+  );
+}
+
+async function listBuys(owner: string, limit: number): Promise<ActivityItem[]> {
+  await ensureBuys();
+  const { rows } = await db.query(
+    `SELECT id, symbol, usd, at FROM wren_buys WHERE owner = $1 ORDER BY at DESC LIMIT $2`,
+    [owner, limit],
+  );
+  const stockNames = new Map(listSpotBuyableOffers().map((o) => [o.symbol, o.name] as const));
+  return (rows as { id: string; symbol: string; usd: string; at: Date }[]).map((r) => ({
+    id: `buy-${r.id}`,
+    kind: "buy" as const,
+    name: null,
+    phone: null,
+    symbol: r.symbol,
+    stockName: stockNames.get(r.symbol) ?? r.symbol.replace(/c$/, ""),
+    usd: Number(r.usd),
+    state: "bought" as const,
+    at: new Date(r.at).toISOString(),
+  }));
+}
+
 export async function listActivity(senderId: string, limit = 50): Promise<ActivityItem[]> {
+  const [sends, buys] = await Promise.all([
+    listSends(senderId, limit),
+    listBuys(senderId, limit).catch(() => [] as ActivityItem[]),
+  ]);
+  return [...sends, ...buys].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)).slice(0, limit);
+}
+
+async function listSends(senderId: string, limit: number): Promise<ActivityItem[]> {
   const { rows } = await db
     .query(
       `SELECT id, intent, amount_usd, gift_tx_hash, gift_failed_at, gift_started_at, created_at
@@ -88,6 +152,7 @@ export async function listActivity(senderId: string, limit = 50): Promise<Activi
     const contact = phone ? (contacts as Map<string, { name?: string }>).get(phone) : undefined;
     return {
       id: r.id,
+      kind: "send" as const,
       name: contact?.name ?? recipient.name ?? null,
       phone,
       symbol,

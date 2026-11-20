@@ -15,7 +15,7 @@ import { Card, rowLine, SectionLabel } from '../components/Market';
 import { EmptyCard } from './ActivityScreen';
 import { getProfile, getStocks, Profile, setNotify, Stock } from '../api';
 import { copy } from '../copy';
-import { ticker, usdShort, when } from '../format';
+import { formatPhone, ticker, usdShort, when } from '../format';
 
 type Props = {
   phone: string;
@@ -38,7 +38,8 @@ export function ProfileScreen({ phone, fallbackName, onBack, onSend }: Props) {
       .catch(() => undefined);
   }, [phone]);
 
-  const name = p?.name ?? fallbackName ?? phone;
+  // Name from where you tapped, so the page never flashes the number as a name.
+  const name = p?.name ?? fallbackName ?? formatPhone(phone);
   const first = name.split(' ')[0];
   const stockName = (sym: string) => stocks.find((s) => s.symbol === sym)?.name ?? ticker(sym);
 
@@ -58,6 +59,7 @@ export function ProfileScreen({ phone, fallbackName, onBack, onSend }: Props) {
           <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
             {first}
           </Text>
+          <Text style={styles.phone}>{formatPhone(phone)}</Text>
           {p?.hasWren && (
             <View style={styles.hasWren}>
               <View style={styles.dot} />
@@ -149,6 +151,7 @@ const styles = StyleSheet.create({
   hasWren: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: color.wrenBody },
   caption: { ...type.caption, color: color.textSecondary },
+  phone: { ...type.price, color: color.textSecondary, marginTop: -6 },
   center: { textAlign: 'center', marginTop: 12 },
   notify: {
     height: 40,

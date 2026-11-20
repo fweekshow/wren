@@ -18,6 +18,7 @@ import { BubbleCard } from '../components/BubbleCard';
 import { Button } from '../components/Button';
 import { PinnedAction } from '../components/PinnedAction';
 import { copy } from '../copy';
+import { formatPhone } from '../format';
 import { track } from '../observe';
 import { getGiftStatus } from '../api';
 
@@ -44,14 +45,7 @@ function holdText(hours: number | null): string {
   return copy.sentHold(hours === 1 ? '1 hour' : `${hours} hours`);
 }
 
-// +1 numbers read as (555) 010-0100; others keep their country code, spaced.
-function formatPhone(e164: string): string {
-  const d = e164.replace(/\D/g, '');
-  if (d.length === 11 && d.startsWith('1')) {
-    return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
-  }
-  return e164.startsWith('+') ? e164.replace(/^(\+\d{1,3})(\d+)$/, '$1 $2') : e164;
-}
+
 
 export function SentScreen({ giftId, personName, phone, usd, companyName, onHome }: Props) {
   const [delivery, setDelivery] = useState<Delivery>({ kind: 'loading' });

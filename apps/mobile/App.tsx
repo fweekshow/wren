@@ -39,7 +39,7 @@ import { color } from './src/theme';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { AllowScreen } from './src/screens/AllowScreen';
 import { ContactsScreen } from './src/screens/ContactsScreen';
-import { AccountScreen } from './src/screens/AccountScreen';
+import { AccountScreen, HomeTab } from './src/screens/AccountScreen';
 import { StockScreen } from './src/screens/StockScreen';
 import { BuyScreen } from './src/screens/BuyScreen';
 import { BoughtScreen } from './src/screens/BoughtScreen';
@@ -60,6 +60,10 @@ import { AddCashScreen } from './src/screens/AddCashScreen';
 const PRIVY_APP_ID = process.env.EXPO_PUBLIC_PRIVY_APP_ID ?? '';
 const CONTACTS_SKIPPED = 'wren.contacts.skipped';
 const CONNECT_SEEN = 'wren.connect.seen';
+
+// SecureStore keys allow letters, digits, '.', '-' and '_'.
+const allowKey = (address: string) => `wren.allowed.${address.toLowerCase()}`;
+const ALLOW_TIMEOUT_MS = 15_000;
 
 export default function App() {
   const [interReady, interError] = useBricolage({
@@ -133,10 +137,20 @@ function Shell() {
   const home = useCallback(() => setStack([{ name: 'home' }]), []);
   // Replace the top screen (Amount → Sent, Buy → It's yours) so Back skips it.
   const swap = useCallback((s: Screen) => setStack((st) => [...st.slice(0, -1), s]), []);
-  const [homeTab, setHomeTab] = useState<'account' | 'people'>('account');
+  const [homeTab, setHomeTab] = useState<HomeTab>('account');
   const [recentIds, setRecentIds] = useState<string[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [allowed, setAllowed] = useState(false);
+  const [allowing, setAllowing] = useState(false);
+  const walletAddress = wallets.wallets[0]?.address;
+  // Remember on this phone that this wallet already let Wren finish sends, so
+  // the screen isn't asked again on every launch.
+  useEffect(() => {
+    if (!walletAddress) return;
+    void SecureStore.getItemAsync(allowKey(walletAddress))
+      .then((v) => v === '1' && setAllowed(true))
+      .catch(() => undefined);
+  }, [walletAddress]);
   const lastSynced = useRef<string | null>(null);
   // loading → ready, or needsPhone when an email sign-in still has to text Wren.
   const [sessionState, setSessionState] = useState<'loading' | 'ready' | 'needsPhone'>('loading');
@@ -362,11 +376,21 @@ function Shell() {
             setAllowed(true);
             return;
           }
-          void signers
-            .addSigners({ address, signers: [{ signerId, policyIds: [] }] })
-            .then(() => setAllowed(true))
-            .catch(() => setAllowed(true));
+          setAllowing(true);
+          // Privy can leave this hanging; never strand someone on this screen.
+          const timeout = new Promise((resolve) => setTimeout(resolve, ALLOW_TIMEOUT_MS));
+          // Privy can hang or error when the signer is already on the wallet, and
+          // this screen has always moved on either way, so remember it either way:
+          // a send without the signer fails with its own clear error.
+          void Promise.race([signers.addSigners({ address, signers: [{ signerId, policyIds: [] }] }), timeout])
+            .catch(() => undefined)
+            .finally(() => {
+              void SecureStore.setItemAsync(allowKey(address), '1').catch(() => undefined);
+              setAllowing(false);
+              setAllowed(true);
+            });
         }}
+        busy={allowing}
       />
     );
   }
@@ -399,7 +423,7 @@ function Shell() {
           onSettings={() => go({ name: 'settings' })}
           onActivity={() => go({ name: 'activity' })}
           onConnect={() => go({ name: 'connect' })}
-          onOpenPerson={(phone) => go({ name: 'profile', phone })}
+          onOpenPerson={(phone, personName) => go({ name: 'profile', phone, personName })}
           onSendTo={(p) => sendTo(p)}
         />
       )}
@@ -433,7 +457,7 @@ function Shell() {
         <ActivityScreen
           onBack={back}
           onSend={() => go({ name: 'someone' })}
-          onOpenPerson={(phone) => go({ name: 'profile', phone })}
+          onOpenPerson={(phone, personName) => go({ name: 'profile', phone, personName })}
         />
       )}
       {screen.name === 'profile' && (

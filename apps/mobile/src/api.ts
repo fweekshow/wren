@@ -507,10 +507,11 @@ export function setPrivacy(visibility: Visibility): Promise<void> {
 
 // ---------- Activity ----------
 
-export type SendState = 'sending' | 'in_account' | 'waiting' | 'returned' | 'failed';
+export type SendState = 'sending' | 'in_account' | 'waiting' | 'returned' | 'failed' | 'bought';
 
 export type ActivityItem = {
   id: string;
+  kind: 'send' | 'buy';
   name: string | null;
   phone: string | null;
   symbol: string;

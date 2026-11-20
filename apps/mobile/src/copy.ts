@@ -99,6 +99,9 @@ export const copy = {
   // Account
   tabAccount: 'Account',
   tabPeople: 'People',
+  tabActivity: 'Activity',
+  stateBought: 'Bought',
+  youBought: 'You bought',
   settings: 'Settings',
   balance: 'Balance',
   today: 'today',

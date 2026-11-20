@@ -12,9 +12,10 @@ import { copy } from '../copy';
 
 type Props = {
   onAllow: () => void;
+  busy?: boolean;
 };
 
-export function AllowScreen({ onAllow }: Props) {
+export function AllowScreen({ onAllow, busy = false }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <TopBar />
@@ -33,7 +34,9 @@ export function AllowScreen({ onAllow }: Props) {
         <Text style={styles.trust}>{copy.allowTrust}</Text>
       </View>
       <PinnedAction>
-        <Button onPress={onAllow}>{copy.allowButton}</Button>
+        <Button onPress={onAllow} loading={busy}>
+          {copy.allowButton}
+        </Button>
       </PinnedAction>
     </SafeAreaView>
   );

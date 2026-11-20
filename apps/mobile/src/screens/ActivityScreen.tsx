@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, font, layout, radius, spacing, type } from '../theme';
+import { color, font, layout, radius, spacing, stockColor, type } from '../theme';
 import { HeaderBack } from '../components/HeaderBack';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
@@ -26,6 +26,8 @@ export function stateLabel(a: ActivityItem): string {
       return copy.stateWaiting(first);
     case 'returned':
       return copy.stateReturned;
+    case 'bought':
+      return copy.stateBought;
     default:
       return copy.stateFailed;
   }
@@ -34,8 +36,9 @@ export function stateLabel(a: ActivityItem): string {
 /** In their account reads as good news in Wren's people blue; the rest stay gray. */
 function StatePill({ a }: { a: ActivityItem }) {
   const good = a.state === 'in_account';
+  const bought = a.state === 'bought';
   return (
-    <View style={[styles.pill, good && { backgroundColor: color.wrenTint }]}>
+    <View style={[styles.pill, good && { backgroundColor: color.wrenTint }, bought && { backgroundColor: color.lime }]}>
       <Text style={[styles.pillText, good && { color: color.wrenWing }]} numberOfLines={1}>
         {stateLabel(a)}
       </Text>
@@ -53,15 +56,23 @@ export function ActivityRows({
   return (
     <View>
       {items.map((a, i) => {
-        const name = a.name ?? a.phone ?? copy.someone;
+        const buy = a.kind === 'buy';
+        const name = buy ? copy.youBought : (a.name ?? a.phone ?? copy.someone);
+        const sc = stockColor(a.symbol);
         return (
           <Pressable
             key={a.id}
-            disabled={!onOpen || !a.phone}
+            disabled={!onOpen || (!a.phone && !buy)}
             onPress={() => onOpen?.(a)}
             style={[styles.row, rowLine(i, items.length)]}
           >
-            <Avatar name={name} size={48} />
+            {buy ? (
+              <View style={[styles.badge, { backgroundColor: sc.bg }]}>
+                <Text style={[styles.badgeText, { color: sc.ink }]}>{a.stockName.slice(0, 1)}</Text>
+              </View>
+            ) : (
+              <Avatar name={name} size={48} />
+            )}
             <View style={styles.mid}>
               <Text style={styles.name} numberOfLines={1}>
                 {name}
@@ -90,7 +101,7 @@ export function EmptyCard({ children, action }: { children: React.ReactNode; act
 type Props = {
   onBack: () => void;
   onSend: () => void;
-  onOpenPerson: (phone: string) => void;
+  onOpenPerson: (phone: string, name?: string) => void;
 };
 
 export function ActivityScreen({ onBack, onSend, onOpenPerson }: Props) {
@@ -143,7 +154,7 @@ export function ActivityScreen({ onBack, onSend, onOpenPerson }: Props) {
           ) : items && items.length === 0 ? (
             <EmptyCard>{copy.noSends}</EmptyCard>
           ) : items ? (
-            <ActivityRows items={items} onOpen={(a) => a.phone && onOpenPerson(a.phone)} />
+            <ActivityRows items={items} onOpen={(a) => a.phone && onOpenPerson(a.phone, a.name ?? undefined)} />
           ) : null}
         </View>
       </ScrollView>
@@ -172,6 +183,8 @@ const styles = StyleSheet.create({
     maxWidth: 150,
   },
   pillText: { fontFamily: font.uiSemiBold, fontSize: 13, color: color.ink },
+  badge: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontFamily: font.display, fontSize: 22 },
   empty: { paddingVertical: 22, paddingHorizontal: 20, gap: 14 },
   emptyText: { ...type.body, color: color.textSecondary },
 });

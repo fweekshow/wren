@@ -15,7 +15,7 @@ import {
   VISIBILITIES,
   type Visibility,
 } from "@/people/wrenPeople.js";
-import { listActivity } from "@/people/wrenActivity.js";
+import { listActivity, recordBuy } from "@/people/wrenActivity.js";
 import { wrenSendCharge } from "@/discovery/stocks/giftStock.service.js";
 import {
   startPriceHistoryJob,
@@ -276,6 +276,9 @@ router.post("/api/app/buy", json, async (req: Request, res: Response) => {
       usd: Number(req.body?.usd),
     });
     // A move ("Sam bought Apple") — no amount. Followers who can see it get a push.
+    void recordBuy(user, result.symbol, result.usd, result.txHash).catch((err) =>
+      logger.warn({ err }, "[wren] recording the buy for Activity failed"),
+    );
     void (async () => {
       await recordMove(user, "bought", result.symbol, result.txHash);
       const followers = await followersToNotify(user);
