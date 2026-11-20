@@ -108,7 +108,7 @@ export function SettingsScreen({ onBack, onConnect, onAddCash, onSignOut }: Prop
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
   scroll: { paddingHorizontal: spacing.screenPad, paddingTop: layout.titleGap, paddingBottom: 60 },
-  title: { ...type.title, color: color.ink },
+  title: { ...type.headline, color: color.ink },
   section: { marginTop: 32 },
   row: { minHeight: 64, paddingLeft: 20, paddingRight: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   body: { ...type.body, color: color.ink },
