@@ -11,6 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { PrivyProvider, useEmbeddedEthereumWallet, usePrivy, useSigners } from '@privy-io/expo';
+import { PrivyElements } from '@privy-io/expo/ui';
 import * as Linking from 'expo-linking';
 import {
   useFonts as useInterTight,
@@ -48,6 +49,7 @@ import { SentScreen } from './src/screens/SentScreen';
 import { CountryPickerScreen } from './src/screens/CountryPickerScreen';
 import { ConnectScreen } from './src/screens/ConnectScreen';
 import { ClaimScreen } from './src/screens/ClaimScreen';
+import { AddCashScreen } from './src/screens/AddCashScreen';
 // Privy app id comes from the env. EXPO_PUBLIC_* vars are bundled into the JS
 // so the client can read them; keep genuinely-secret values on the server.
 // The dashboard client id is rejected by Privy's API, so it is not passed.
@@ -86,6 +88,8 @@ export default function App() {
       <SafeAreaProvider>
         <StatusBar style="dark" />
         <Shell />
+        {/* Privy's own sheets (Add cash funding). */}
+        <PrivyElements />
       </SafeAreaProvider>
     </PrivyProvider>
   );
@@ -97,6 +101,7 @@ type Screen =
   | { name: 'home' }
   | { name: 'someone' }
   | { name: 'connect' }
+  | { name: 'addCash' }
   | { name: 'country'; person: Person }
   | { name: 'amount'; person: Person; phone: string }
   | { name: 'claim'; giftId: string }
@@ -368,6 +373,7 @@ function Shell() {
         <HomeScreen
           onSend={() => setScreen({ name: 'someone' })}
           onConnect={() => setScreen({ name: 'connect' })}
+          onAddCash={() => setScreen({ name: 'addCash' })}
         />
       )}
       {screen.name === 'someone' && (
@@ -399,6 +405,13 @@ function Shell() {
               companyName: match?.name ?? symbol,
             });
           }}
+        />
+      )}
+      {screen.name === 'addCash' && (
+        <AddCashScreen
+          address={wallets.wallets[0]?.address ?? null}
+          onBack={() => setScreen({ name: 'home' })}
+          onAdded={() => setScreen({ name: 'home' })}
         />
       )}
       {screen.name === 'connect' && (

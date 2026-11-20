@@ -112,27 +112,49 @@ export type Holding = {
 };
 
 export type Portfolio = {
+  /** Cash + stocks. Other assets in the account (ETH, other tokens) don't count. */
   total: number;
+  /** USDC in the account. */
+  cash: number;
+  /** Stocks only. */
   holdings: Holding[];
 };
+
+const CASH_SYMBOLS = new Set(['USDC', 'USDBC']);
+
+function stockKey(symbol: string): string {
+  return symbol.trim().toUpperCase().replace(/C$/, '');
+}
 
 type PortfolioResponse = {
   totals?: { totalUsd?: number; coinsUsd?: number };
   coins?: Array<{ symbol?: string; name?: string | null; valueUsd?: number }>;
 };
 
-export async function getPortfolio(): Promise<Portfolio> {
+/**
+ * The account as Wren shows it: cash (USDC) and stocks. Pass the stock list
+ * (getStocks) so only real stocks count; ETH or other tokens in the same
+ * account never show up as "stocks".
+ */
+export async function getPortfolio(stocks: Stock[]): Promise<Portfolio> {
   const raw = await request<PortfolioResponse>('/api/app/portfolio');
-  const holdings: Holding[] = (raw.coins ?? [])
-    .map((c) => ({
-      symbol: String(c.symbol ?? ''),
-      name: String(c.name ?? c.symbol ?? ''),
-      value: Number(c.valueUsd ?? 0),
-    }))
-    .filter((h) => h.symbol && Number.isFinite(h.value))
-    .sort((a, b) => b.value - a.value);
-  const total = Number(raw.totals?.totalUsd ?? raw.totals?.coinsUsd ?? 0);
-  return { total: Number.isFinite(total) ? total : 0, holdings };
+  const byKey = new Map(stocks.map((s) => [stockKey(s.symbol), s] as const));
+  let cash = 0;
+  const holdings: Holding[] = [];
+  for (const c of raw.coins ?? []) {
+    const symbol = String(c.symbol ?? '');
+    const value = Number(c.valueUsd ?? 0);
+    if (!symbol || !Number.isFinite(value)) continue;
+    if (CASH_SYMBOLS.has(symbol.toUpperCase())) {
+      cash += value;
+      continue;
+    }
+    const stock = byKey.get(stockKey(symbol));
+    if (stock && value > 0.005) holdings.push({ symbol: stock.symbol, name: stock.name, value });
+  }
+  holdings.sort((a, b) => b.value - a.value);
+  const stocksValue = holdings.reduce((sum, h) => sum + h.value, 0);
+  return { total: cash + stocksValue, cash, holdings };
 }
 
 // ---------- Stocks catalog ----------

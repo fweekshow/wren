@@ -13,7 +13,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, layout, spacing, type } from '../theme';
+import { color, font, layout, radius, spacing, type } from '../theme';
+import { usd2 } from '../fees';
 import { TopBar } from '../components/HeaderBack';
 import { copy } from '../copy';
 import { getConnectState, getPortfolio, getStocks, Portfolio, Stock } from '../api';
@@ -33,25 +34,30 @@ const STOCKS: Stock[] = [
 type Props = {
   onSend: () => void;
   onConnect: () => void;
+  onAddCash: () => void;
 };
 
-export function HomeScreen({ onSend, onConnect }: Props) {
-  const [portfolio, setPortfolio] = useState<Portfolio>({ total: 0, holdings: [] });
+export function HomeScreen({ onSend, onConnect, onAddCash }: Props) {
+  const [portfolio, setPortfolio] = useState<Portfolio>({ total: 0, cash: 0, holdings: [] });
   const [catalog, setCatalog] = useState<Stock[]>(STOCKS);
   const [refreshing, setRefreshing] = useState(false);
   const [needsConnect, setNeedsConnect] = useState(false);
 
   const load = useCallback(async () => {
+    let stocks = STOCKS;
     try {
-      setPortfolio(await getPortfolio());
-    } catch {
-      // Keep the last total. Send stays either way.
-    }
-    try {
-      const stocks = await getStocks();
-      if (stocks.length) setCatalog(stocks);
+      const fresh = await getStocks();
+      if (fresh.length) {
+        stocks = fresh;
+        setCatalog(fresh);
+      }
     } catch {
       // The four names above are the account until the server answers.
+    }
+    try {
+      setPortfolio(await getPortfolio(stocks));
+    } catch {
+      // Keep the last total. Send stays either way.
     }
     try {
       const connect = await getConnectState();
@@ -84,6 +90,16 @@ export function HomeScreen({ onSend, onConnect }: Props) {
         <TopBar />
         <View style={styles.hero}>
           <BigNumber value={portfolio.total} align="left" />
+          <View style={styles.cashRow}>
+            <Text style={styles.cash}>{copy.cashLine(usd2(portfolio.cash))}</Text>
+            <Pressable
+              onPress={onAddCash}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.addCash, pressed && styles.pressed]}
+            >
+              <Text style={styles.addCashText}>{copy.addCash}</Text>
+            </Pressable>
+          </View>
           <Text style={styles.why}>{copy.homeWhy}</Text>
         </View>
 
@@ -130,6 +146,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screenPad,
     paddingTop: layout.titleGap,
   },
+  cashRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  cash: { ...type.price, color: color.textSecondary },
+  addCash: {
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: color.card,
+    justifyContent: 'center',
+  },
+  addCashText: { fontFamily: font.uiSemiBold, fontSize: 15, color: color.ink },
   why: {
     ...type.bodyRegular,
     color: color.textSecondary,
