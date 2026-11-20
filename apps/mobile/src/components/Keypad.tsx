@@ -61,7 +61,8 @@ const styles = StyleSheet.create({
     rowGap: 2,
   },
   key: {
-    flexBasis: '32%',
+    // 30% + grow: three per row at any width once the 8px gaps are taken.
+    flexBasis: '30%',
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',

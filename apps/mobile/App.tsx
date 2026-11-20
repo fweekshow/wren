@@ -57,19 +57,22 @@ const CONTACTS_SKIPPED = 'wren.contacts.skipped';
 const CONNECT_SEEN = 'wren.connect.seen';
 
 export default function App() {
-  useInterTight({
+  const [interReady, interError] = useInterTight({
     InterTight_400Regular,
     InterTight_500Medium,
     InterTight_600SemiBold,
   });
-  useRobotoMono({
+  const [monoReady, monoError] = useRobotoMono({
     RobotoMono_400Regular,
     RobotoMono_500Medium,
   });
+  // Text drawn before the fonts land stays in the system face, so wait.
+  // A font error falls through to the system face rather than a blank app.
+  const fontsSettled = (interReady || !!interError) && (monoReady || !!monoError);
 
   // No app id → render the gate but show no fields; this stops Privy from
   // throwing and keeps the rest of the UI inspectable in a dev build.
-  if (!PRIVY_APP_ID) {
+  if (!PRIVY_APP_ID || !fontsSettled) {
     return (
       <SafeAreaProvider>
         <StatusBar style="dark" />

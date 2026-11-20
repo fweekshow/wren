@@ -1,11 +1,11 @@
 // Sign-in step. Continue opens Apple's contacts sheet. Not now skips it.
+// One headline, one line, one blue pill. No illustration.
 // Granted contacts are loaded and sent up so Send can use them.
 
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, spacing, type } from '../theme';
-import { Wren } from '../components/Wren';
 import { Button } from '../components/Button';
 import { PinnedAction } from '../components/PinnedAction';
 import { copy } from '../copy';
@@ -42,9 +42,6 @@ export function ContactsScreen({ onDone, onSkip }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.stage}>
-        <View style={styles.halo}>
-          <Wren size={128} />
-        </View>
         <Text style={styles.title}>{copy.contactsTitle}</Text>
         <Text style={styles.body}>{copy.contactsBody}</Text>
       </View>
@@ -52,9 +49,10 @@ export function ContactsScreen({ onDone, onSkip }: Props) {
         <Button loading={busy} onPress={() => void onContinue()}>
           {copy.contactsButton}
         </Button>
-        <Pressable onPress={onSkip} hitSlop={12} style={styles.skip}>
-          <Text style={styles.skipText}>{copy.contactsSkip}</Text>
-        </Pressable>
+        <View style={styles.gap} />
+        <Button variant="ghost" onPress={onSkip}>
+          {copy.contactsSkip}
+        </Button>
       </PinnedAction>
     </SafeAreaView>
   );
@@ -82,34 +80,13 @@ const styles = StyleSheet.create({
   stage: {
     flex: 1,
     paddingHorizontal: spacing.screenPad,
-    paddingTop: 36,
+    paddingTop: 32,
   },
-  halo: {
-    width: 168,
-    height: 168,
-    borderRadius: 84,
-    backgroundColor: color.wrenTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-  },
-  title: {
-    ...type.title,
-    color: color.ink,
-    marginTop: 28,
-  },
+  title: { ...type.headline, color: color.ink },
   body: {
     ...type.bodyRegular,
     color: color.textSecondary,
-    marginTop: 12,
+    marginTop: 14,
   },
-  skip: {
-    alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 4,
-  },
-  skipText: {
-    ...type.label,
-    color: color.textSecondary,
-  },
+  gap: { height: 10 },
 });

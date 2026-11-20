@@ -1,12 +1,13 @@
-// Sent: the bird on the halo, first name, dollars + company, then one line
-// ("It's in their Wren." / "They'll get a text."). Home is the only button.
+// Sent: "Sent to", their first name at 96, then the send as your blue bubble
+// ("$50 of Apple.") with one line under it ("Text sent" / "It's in their
+// Wren."), like a delivered text. Home is the only button. No illustration.
 // AmountScreen already waited for status === 'sent' before pushing here.
 
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, type } from '../theme';
-import { Wren } from '../components/Wren';
+import { color, spacing, type } from '../theme';
+import { BubbleCard } from '../components/BubbleCard';
 import { Button } from '../components/Button';
 import { PinnedAction } from '../components/PinnedAction';
 import { copy } from '../copy';
@@ -50,16 +51,14 @@ export function SentScreen({ giftId, personName, usd, companyName, onHome }: Pro
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.stage}>
-        <View style={styles.halo}>
-          <Wren size={210} style={{ marginTop: -20 }} />
-        </View>
-        <Text style={styles.name}>{personName}</Text>
-        <Text style={styles.sub}>
-          {dollars} {companyName}
+        <Text style={styles.label}>{copy.sentTo}</Text>
+        <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+          {personName}
         </Text>
-        <Text style={styles.line}>
-          {line}
-        </Text>
+        <BubbleCard from="you" style={styles.bubble}>
+          {`${dollars} of ${companyName}.`}
+        </BubbleCard>
+        <Text style={styles.line}>{line}</Text>
       </View>
       <PinnedAction>
         <Button onPress={onHome}>{copy.sentHome}</Button>
@@ -72,30 +71,24 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
   stage: {
     flex: 1,
-    alignItems: 'center',
-    paddingTop: 100,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.screenPad,
+    paddingBottom: 170,
   },
-  halo: {
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: color.wrenTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
+  label: {
+    ...type.bodyRegular,
+    color: color.textSecondary,
   },
   name: {
-    ...type.nameLg,
-    color: color.textPrimary,
+    ...type.nameXl,
+    color: color.ink,
+    marginTop: 6,
   },
-  sub: {
-    ...type.bodyRegular,
-    color: color.textSecondary,
-    marginTop: 12,
-  },
+  bubble: { marginTop: 36 },
   line: {
-    ...type.bodyRegular,
+    ...type.caption,
     color: color.textSecondary,
-    marginTop: 4,
+    alignSelf: 'flex-end',
+    marginTop: 8,
   },
 });

@@ -1,4 +1,5 @@
-// Amount: stock pills (scrolling), big entry, presets, keypad.
+// Amount: the amount as your blue bubble ("To Maya" under it, like a sent
+// text), then stock pills (scrolling), presets, keypad.
 // Apple Pay only — no card pill. On Continue we post once and hand off to
 // Safari via Linking.openURL. If the request fails, we restore Continue and
 // say "That didn't go through."
@@ -9,17 +10,17 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, spacing, type } from '../theme';
-import { Wren } from '../components/Wren';
+import { BubbleCard } from '../components/BubbleCard';
 import { BigNumber } from '../components/BigNumber';
 import { StockPicker } from '../components/StockPicker';
 import { Presets } from '../components/Presets';
 import { applyKey, Keypad } from '../components/Keypad';
 import { Button } from '../components/Button';
-import { Avatar } from '../components/Avatar';
 import { HeaderBack } from '../components/HeaderBack';
 import { getGiftStatus, getStocks, sendGift, startPay, Stock, type PayMethod } from '../api';
 import { copy } from '../copy';
@@ -43,6 +44,8 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [chargeUsd, setChargeUsd] = useState<number | null>(null);
   const [payMethod, setPayMethod] = useState<PayMethod>('apple');
+  const { width } = useWindowDimensions();
+  const bubbleWidth = width - spacing.screenPad * 2;
 
   useEffect(() => {
     let cancelled = false;
@@ -151,20 +154,20 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <HeaderBack
-        onBack={onBack}
-        right={
-          <View style={styles.who}>
-            <Avatar name={person.firstName} size={28} />
-            <Text style={styles.whoText}>{person.firstName}</Text>
-          </View>
-        }
-      />
+      <HeaderBack onBack={onBack} />
       <View style={styles.hero}>
-        <Wren size={96} style={{ marginBottom: 6 }} />
-        <View style={{ height: 92, justifyContent: 'center' }}>
-          <BigNumber value={numeric} size="amount" cents={amount.includes('.')} />
-        </View>
+        <BubbleCard from="you" style={[styles.bubble, { maxWidth: bubbleWidth }]}>
+          <BigNumber
+            value={numeric}
+            size="amountXl"
+            tone="onBlue"
+            cents={amount.includes('.')}
+            fitWidth={bubbleWidth - 48}
+          />
+        </BubbleCard>
+        <Text style={styles.to}>
+          {copy.amountTo} {person.firstName}
+        </Text>
       </View>
       <StockPicker
         stocks={stocks}
@@ -213,16 +216,23 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
-  who: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingRight: 12,
-  },
-  whoText: { ...type.body, color: color.textPrimary },
   hero: {
-    alignItems: 'center',
+    paddingHorizontal: spacing.screenPad,
     paddingTop: 8,
+  },
+  bubble: {
+    minWidth: 160,
+    height: 132,
+    paddingHorizontal: 24,
+    // Line height carries descender space; nudge the digits to look centered.
+    paddingTop: 12,
+    justifyContent: 'center',
+  },
+  to: {
+    ...type.caption,
+    color: color.textSecondary,
+    alignSelf: 'flex-end',
+    marginTop: 8,
   },
   keypadWrap: {
     paddingHorizontal: 32,

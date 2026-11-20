@@ -70,6 +70,9 @@ export const type = {
   bubble: { fontFamily: font.ui, fontSize: 19, lineHeight: 25 },
   total: { fontFamily: font.display, fontSize: 64, lineHeight: 64, letterSpacing: -64 * 0.03 },
   amount: { fontFamily: font.display, fontSize: 88, lineHeight: 88, letterSpacing: -88 * 0.03 },
+  // Nov 2026: the amount inside its bubble, and the name on Sent.
+  amountXl: { fontFamily: font.display, fontSize: 104, lineHeight: 102, letterSpacing: -104 * 0.04 },
+  nameXl: { fontFamily: font.display, fontSize: 96, lineHeight: 94, letterSpacing: -96 * 0.04 },
   name: { fontFamily: font.display, fontSize: 48, lineHeight: 48, letterSpacing: -48 * 0.03 },
   nameLg: { fontFamily: font.display, fontSize: 56, lineHeight: 56, letterSpacing: -56 * 0.03 },
   title: { fontFamily: font.ui, fontSize: 32, lineHeight: 38, letterSpacing: -32 * 0.02 },

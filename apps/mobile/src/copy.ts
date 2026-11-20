@@ -42,6 +42,7 @@ export const copy = {
   homeConnect: 'Connect iMessage or WhatsApp',
   cash: 'Cash',
   pay: 'Pay',
+  amountTo: 'To',
   applePay: 'Apple Pay',
   card: 'Card',
   bank: 'Bank',

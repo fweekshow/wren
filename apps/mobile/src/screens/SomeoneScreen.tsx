@@ -20,7 +20,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, font, radius, spacing, type } from '../theme';
-import { Wren } from '../components/Wren';
 import { SearchField } from '../components/SearchField';
 import { PersonTile } from '../components/PersonTile';
 import { Avatar } from '../components/Avatar';
@@ -165,8 +164,7 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <HeaderBack onBack={onBack} />
       <View style={styles.title}>
-        <Wren size={84} />
-        <Text style={styles.titleText}>Who's it for?</Text>
+        <Text style={styles.titleText}>Who’s it for?</Text>
       </View>
 
       {perm === 'granted' ? (
@@ -253,18 +251,14 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
           )}
         </>
       ) : (
-        <View style={styles.permWrap}>
+        <>
           <Text style={styles.permCopy}>{copy.contactsBody}</Text>
-          <View style={{ height: 24 }} />
-          <View style={{ alignSelf: 'stretch' }}>
-            <Button
-              variant="primary"
-              onPress={perm === 'denied' ? openSettings : ask}
-            >
+          <PinnedAction>
+            <Button onPress={perm === 'denied' ? openSettings : ask}>
               {perm === 'denied' ? copy.contactsSettings : copy.contactsButton}
             </Button>
-          </View>
-        </View>
+          </PinnedAction>
+        </>
       )}
     </SafeAreaView>
   );
@@ -273,14 +267,11 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
   title: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 24,
-    paddingTop: 4,
+    paddingHorizontal: spacing.screenPad,
+    paddingTop: 12,
   },
-  titleText: { ...type.title, color: color.textPrimary },
-  search: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 },
+  titleText: { ...type.headline, color: color.ink },
+  search: { paddingHorizontal: spacing.screenPad, paddingTop: 24, paddingBottom: 8 },
   recentsRow: { paddingHorizontal: 24, paddingVertical: 8, gap: 0 },
   listPad: { paddingHorizontal: spacing.screenPad, paddingTop: 8, paddingBottom: 40 },
   row: {
@@ -308,16 +299,11 @@ const styles = StyleSheet.create({
     paddingTop: 40,
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  permWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
   permCopy: {
-    ...type.body,
-    color: color.textPrimary,
-    textAlign: 'center',
+    ...type.bodyRegular,
+    color: color.textSecondary,
+    marginTop: 14,
+    paddingHorizontal: spacing.screenPad,
   },
   add: { paddingTop: 8 },
   hint: {

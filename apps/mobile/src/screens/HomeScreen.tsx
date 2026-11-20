@@ -1,6 +1,7 @@
-// The account. Money on top, stocks underneath, one Send pill.
+// The account. The total is the headline, stocks underneath, one Send pill.
 // Send is the product: a stock goes to someone you know, from here.
 // An empty account still lists the stocks you can send.
+// Not connected yet → a gray bubble from Wren that opens Connect.
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -15,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, spacing, type } from '../theme';
 import { copy } from '../copy';
 import { getConnectState, getPortfolio, getStocks, Portfolio, Stock } from '../api';
-import { Wren } from '../components/Wren';
+import { BubbleCard } from '../components/BubbleCard';
 import { BigNumber } from '../components/BigNumber';
 import { StockList, StockRow } from '../components/StockRow';
 import { PinnedAction } from '../components/PinnedAction';
@@ -80,10 +81,19 @@ export function HomeScreen({ onSend, onConnect }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
-          <Wren size={88} />
-          <BigNumber value={portfolio.total} style={styles.total} />
+          <BigNumber value={portfolio.total} align="left" />
           <Text style={styles.why}>{copy.homeWhy}</Text>
         </View>
+
+        {needsConnect ? (
+          <Pressable
+            onPress={onConnect}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.connect, pressed && styles.pressed]}
+          >
+            <BubbleCard from="them">{copy.homeConnect}</BubbleCard>
+          </Pressable>
+        ) : null}
 
         <Text style={styles.section}>{copy.homeStocks}</Text>
         <View style={styles.list}>
@@ -93,19 +103,13 @@ export function HomeScreen({ onSend, onConnect }: Props) {
                 key={row.symbol}
                 name={row.name}
                 symbol={row.symbol}
-                value={'value' in row ? row.value : undefined}
+                value={'value' in row ? (row as { value: number }).value : undefined}
                 last={i === rows.length - 1}
                 onPress={onSend}
               />
             ))}
           </StockList>
         </View>
-
-        {needsConnect ? (
-          <Pressable onPress={onConnect} style={styles.connect} accessibilityRole="button">
-            <Text style={styles.connectText}>{copy.homeConnect}</Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
       <PinnedAction>
         <Button onPress={onSend}>{copy.homeSend}</Button>
@@ -121,17 +125,19 @@ const styles = StyleSheet.create({
     paddingBottom: 140,
   },
   hero: {
-    alignItems: 'center',
-    paddingTop: 28,
+    paddingHorizontal: spacing.screenPad,
+    paddingTop: 32,
   },
-  total: { marginTop: 8 },
   why: {
     ...type.bodyRegular,
     color: color.textSecondary,
-    marginTop: 10,
-    textAlign: 'center',
-    paddingHorizontal: spacing.screenPad,
+    marginTop: 14,
   },
+  connect: {
+    paddingHorizontal: spacing.screenPad,
+    marginTop: 28,
+  },
+  pressed: { transform: [{ scale: 0.98 }] },
   section: {
     ...type.label,
     color: color.textSecondary,
@@ -141,15 +147,5 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: spacing.screenPad,
-  },
-  connect: {
-    alignSelf: 'center',
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  connectText: {
-    ...type.label,
-    color: color.textSecondary,
   },
 });
