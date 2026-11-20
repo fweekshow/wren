@@ -383,7 +383,7 @@ router.post("/api/app/privacy", json, async (req: Request, res: Response) => {
   if (!user) return;
   const visibility = String(req.body?.visibility ?? "") as Visibility;
   if (!VISIBILITIES.includes(visibility)) {
-    res.status(400).json({ error: "Pick only_me, your_people or everyone." });
+    res.status(400).json({ error: "Pick only_me or your_people." });
     return;
   }
   try {

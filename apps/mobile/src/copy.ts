@@ -174,11 +174,9 @@ export const copy = {
   whoSees: 'Who sees your moves',
   visOnlyMe: 'Only me',
   visYourPeople: 'Your people',
-  visEveryone: 'Everyone on Wren',
   visNote: {
     only_me: 'No one sees what you buy or send.',
-    your_people: 'Contacts on Wren see what you buy. Never how much.',
-    everyone: 'Anyone on Wren sees what you buy. Never how much.',
+    your_people: 'People you both have saved see what you buy. Never how much.',
   } as Record<string, string>,
   messagesOn: 'You get messages on',
   iMessage: 'iMessage',

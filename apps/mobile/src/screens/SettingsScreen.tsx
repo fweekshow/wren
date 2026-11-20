@@ -53,7 +53,7 @@ export function SettingsScreen({ onBack, onConnect, onAddCash, onSignOut }: Prop
             <PrivacyChoices
               value={visibility}
               onChange={pick}
-              options={['only_me', 'your_people', 'everyone']}
+              options={['only_me', 'your_people']}
               style={{ marginTop: 12 }}
             />
           )}

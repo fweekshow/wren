@@ -2,21 +2,20 @@ import { describe, expect, it } from "vitest";
 import { decideCanSee, holdingShares } from "./wrenPeople.js";
 
 describe("who can see moves", () => {
+  const both = { viewerInTargetsContacts: true, targetInViewersContacts: true };
   it("is mutual: if you share nothing, you see nothing", () => {
-    expect(decideCanSee({ viewerVisibility: "only_me", targetVisibility: "everyone", viewerInTargetsPeople: true })).toBe(false);
-  });
-
-  it("everyone means anyone on Wren who shares", () => {
-    expect(decideCanSee({ viewerVisibility: "your_people", targetVisibility: "everyone", viewerInTargetsPeople: false })).toBe(true);
-  });
-
-  it("your people means only people in their contacts", () => {
-    expect(decideCanSee({ viewerVisibility: "everyone", targetVisibility: "your_people", viewerInTargetsPeople: true })).toBe(true);
-    expect(decideCanSee({ viewerVisibility: "everyone", targetVisibility: "your_people", viewerInTargetsPeople: false })).toBe(false);
+    expect(decideCanSee({ viewerVisibility: "only_me", targetVisibility: "your_people", ...both })).toBe(false);
   });
 
   it("only me hides everything", () => {
-    expect(decideCanSee({ viewerVisibility: "everyone", targetVisibility: "only_me", viewerInTargetsPeople: true })).toBe(false);
+    expect(decideCanSee({ viewerVisibility: "your_people", targetVisibility: "only_me", ...both })).toBe(false);
+  });
+
+  it("contacts only, both ways: each has the other's number", () => {
+    const shared = { viewerVisibility: "your_people", targetVisibility: "your_people" } as const;
+    expect(decideCanSee({ ...shared, ...both })).toBe(true);
+    expect(decideCanSee({ ...shared, viewerInTargetsContacts: true, targetInViewersContacts: false })).toBe(false);
+    expect(decideCanSee({ ...shared, viewerInTargetsContacts: false, targetInViewersContacts: true })).toBe(false);
   });
 });
 

@@ -2,10 +2,11 @@
 //
 // - Moves are what someone did and when ("Mom bought Apple"). Never dollars:
 //   no amount is stored or returned.
-// - Who sees your moves: only_me | your_people | everyone. Nobody is shared
-//   until they choose; the app asks after their first Buy. No row = only_me.
-// - Mutual: you see others' moves only if you share yours (not only_me).
-// - your_people: the target's own contacts who are on Wren.
+// - Who sees your moves: only_me | your_people. Nobody is shared until they
+//   choose; the app asks after their first Buy. No row = only_me.
+// - Contacts only, both ways: you see someone's moves only if you both share
+//   and each of you has the other's number saved. Never strangers.
+// - Rows saved as "everyone" (an option we dropped) read as your_people.
 // - Profiles show holdings as shares of the account (percent), never dollars.
 
 import { db } from "@/discovery/db.js";
@@ -13,8 +14,8 @@ import { ContactsAdapter } from "@/messaging/contacts.adapter.js";
 import { buildPortfolioForAppDashboard } from "@/portfolio/service.js";
 import { listSpotBuyableOffers } from "@/discovery/doppler/stockCatalog.js";
 
-export type Visibility = "only_me" | "your_people" | "everyone";
-export const VISIBILITIES: Visibility[] = ["only_me", "your_people", "everyone"];
+export type Visibility = "only_me" | "your_people";
+export const VISIBILITIES: Visibility[] = ["only_me", "your_people"];
 export type MoveKind = "bought";
 
 let ready: Promise<void> | null = null;
@@ -70,7 +71,8 @@ export async function recordMove(owner: string, kind: MoveKind, symbol: string, 
 export async function getVisibility(owner: string): Promise<{ visibility: Visibility; chosen: boolean }> {
   await ensureTables();
   const { rows } = await db.query(`SELECT visibility FROM wren_privacy WHERE owner = $1`, [norm(owner)]);
-  const v = rows[0]?.visibility as Visibility | undefined;
+  const raw = rows[0]?.visibility as string | undefined;
+  const v = (raw === "everyone" ? "your_people" : raw) as Visibility | undefined;
   return v && VISIBILITIES.includes(v) ? { visibility: v, chosen: true } : { visibility: "only_me", chosen: false };
 }
 
@@ -88,26 +90,27 @@ export async function setVisibility(owner: string, visibility: Visibility): Prom
 export function decideCanSee(args: {
   viewerVisibility: Visibility;
   targetVisibility: Visibility;
-  viewerInTargetsPeople: boolean;
+  viewerInTargetsContacts: boolean;
+  targetInViewersContacts: boolean;
 }): boolean {
   if (args.viewerVisibility === "only_me") return false; // share yours to see theirs
-  if (args.targetVisibility === "everyone") return true;
-  if (args.targetVisibility === "your_people") return args.viewerInTargetsPeople;
-  return false;
-}
-
-async function viewerInTargetsPeople(viewer: string, target: string): Promise<boolean> {
-  return Boolean(await ContactsAdapter.findByPhone(target, viewer));
+  if (args.targetVisibility === "only_me") return false;
+  return args.viewerInTargetsContacts && args.targetInViewersContacts;
 }
 
 export async function canSee(viewer: string, target: string): Promise<boolean> {
   if (norm(viewer) === norm(target)) return true;
   const [v, t] = await Promise.all([getVisibility(viewer), getVisibility(target)]);
   if (v.visibility === "only_me" || t.visibility === "only_me") return false;
+  const [viewerInTargets, targetInViewers] = await Promise.all([
+    ContactsAdapter.findByPhone(target, viewer).then(Boolean),
+    ContactsAdapter.findByPhone(viewer, target).then(Boolean),
+  ]);
   return decideCanSee({
     viewerVisibility: v.visibility,
     targetVisibility: t.visibility,
-    viewerInTargetsPeople: t.visibility === "your_people" ? await viewerInTargetsPeople(viewer, target) : false,
+    viewerInTargetsContacts: viewerInTargets,
+    targetInViewersContacts: targetInViewers,
   });
 }
 

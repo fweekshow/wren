@@ -496,7 +496,7 @@ export function setNotify(phone: string, notify: boolean): Promise<void> {
   });
 }
 
-export type Visibility = 'only_me' | 'your_people' | 'everyone';
+export type Visibility = 'only_me' | 'your_people';
 
 export function getPrivacy(): Promise<{ visibility: Visibility; chosen: boolean }> {
   return request('/api/app/privacy');

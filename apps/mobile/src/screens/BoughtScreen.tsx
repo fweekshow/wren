@@ -1,5 +1,5 @@
 // After a Buy. First buy only: "Show your people?" with Your people
-// preselected (never Everyone by default). Then: "It's yours." and
+// preselected. Then: "It's yours." and
 // "Send it to someone?" — buying turns into a gift.
 
 import React, { useState } from 'react';
@@ -33,7 +33,7 @@ export function PrivacyChoices({
   style?: StyleProp<ViewStyle>;
 }) {
   const label = (v: Visibility) =>
-    v === 'only_me' ? copy.visOnlyMe : v === 'your_people' ? copy.visYourPeople : copy.visEveryone;
+    v === 'only_me' ? copy.visOnlyMe : copy.visYourPeople;
   return (
     <View style={[styles.choices, style]}>
       {options.map((v) => {
