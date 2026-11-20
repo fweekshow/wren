@@ -20,12 +20,18 @@ export function Change({ value, style }: { value: number | null | undefined; sty
   );
 }
 
-function pathFor(values: number[], w: number, h: number, pad = 2): { d: string; end: { x: number; y: number }; y: (v: number) => number } {
+function pathFor(
+  values: number[],
+  w: number,
+  h: number,
+  pad = 2,
+  padX = 0,
+): { d: string; end: { x: number; y: number }; y: (v: number) => number } {
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
   const y = (v: number) => pad + (h - pad * 2) * (1 - (v - min) / span);
-  const step = values.length > 1 ? w / (values.length - 1) : 0;
+  const step = values.length > 1 ? (w - padX) / (values.length - 1) : 0;
   const pts = values.map((v, i) => ({ x: i * step, y: y(v) }));
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
   return { d, end: pts[pts.length - 1] ?? { x: 0, y: h / 2 }, y };
@@ -45,13 +51,13 @@ export function Sparkline({
   dot?: boolean;
 }) {
   if (values.length < 2) return <View style={{ width, height }} />;
-  const { d, end } = pathFor(values, width, height, dot ? 8 : 2);
+  const { d, end } = pathFor(values, width, height, dot ? 8 : 2, dot ? 8 : 0);
   return (
     <Svg width={width} height={height} style={{ overflow: 'visible' }}>
       <Path d={d} fill="none" stroke={color.ink} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
       {dot && (
         <>
-          <Circle cx={end.x} cy={end.y} r={7} fill={color.card} />
+          <Circle cx={end.x} cy={end.y} r={7} fill={color.canvas} />
           <Circle cx={end.x} cy={end.y} r={3.5} fill={color.ink} />
         </>
       )}
@@ -62,13 +68,14 @@ export function Sparkline({
 /** The stock page chart: a line, a dotted baseline at the opening price, a dot at now. */
 export function Chart({ values, width, height = 180 }: { values: number[]; width: number; height?: number }) {
   if (values.length < 2) return <View style={{ width, height }} />;
-  const { d, end, y } = pathFor(values, width, height, 10);
+  // Keep the end dot inside the drawing; SVG clips anything past the edge.
+  const { d, end, y } = pathFor(values, width, height, 10, 10);
   const baseY = y(values[0]);
   return (
     <Svg width={width} height={height} style={{ overflow: 'visible' }}>
       <Line x1={0} x2={width} y1={baseY} y2={baseY} stroke={color.hairline} strokeWidth={1} strokeDasharray="2 4" />
       <Path d={d} fill="none" stroke={color.ink} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-      <Circle cx={end.x} cy={end.y} r={9} fill={color.card} />
+      <Circle cx={end.x} cy={end.y} r={9} fill={color.canvas} />
       <Circle cx={end.x} cy={end.y} r={4.5} fill={color.ink} />
     </Svg>
   );

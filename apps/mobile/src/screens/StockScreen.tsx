@@ -98,7 +98,11 @@ export function StockScreen({ stock, onBack, onBuy, onSend }: Props) {
         <Card style={{ marginTop: 24 }}>
           <View style={[styles.line, sent > 0 && styles.hair]}>
             <Text style={styles.body}>{copy.youHold}</Text>
-            <Text style={styles.price}>{held == null ? '' : held > 0 ? usd2(held) : copy.noneYet}</Text>
+            {held != null && held > 0 ? (
+              <Text style={styles.price}>{usd2(held)}</Text>
+            ) : (
+              <Text style={styles.none}>{held == null ? '' : copy.noneYet}</Text>
+            )}
           </View>
           {sent > 0 && (
             <View style={styles.line}>
@@ -137,6 +141,7 @@ const styles = StyleSheet.create({
   hair: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.hairline },
   body: { ...type.body, color: color.ink },
   price: { ...type.price, color: color.ink },
+  none: { ...type.body, color: color.textSecondary },
   pinned: {
     position: 'absolute',
     left: 0,

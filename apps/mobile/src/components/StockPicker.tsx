@@ -30,7 +30,8 @@ export function StockPicker({ stocks, value, onChange, style }: Props) {
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
-      style={[{ alignSelf: 'stretch' }, style]}
+      // flexGrow 0: a horizontal ScrollView otherwise fills the column's height.
+      style={[{ alignSelf: 'stretch', flexGrow: 0 }, style]}
     >
       {stocks.map((s, i) => {
         const on = s.symbol === value;

@@ -3,7 +3,7 @@
 // "Send it to someone?" — buying turns into a gift.
 
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, layout, radius, spacing, type } from '../theme';
 import { TopBar } from '../components/HeaderBack';
@@ -25,15 +25,17 @@ export function PrivacyChoices({
   value,
   onChange,
   options,
+  style,
 }: {
   value: Visibility;
   onChange: (v: Visibility) => void;
   options: Visibility[];
+  style?: StyleProp<ViewStyle>;
 }) {
   const label = (v: Visibility) =>
     v === 'only_me' ? copy.visOnlyMe : v === 'your_people' ? copy.visYourPeople : copy.visEveryone;
   return (
-    <View style={styles.choices}>
+    <View style={[styles.choices, style]}>
       {options.map((v) => {
         const on = v === value;
         return (

@@ -21,6 +21,8 @@ export function sendState(row: {
   failed: boolean;
   recipientKind: string | null;
   escrowStatus: string | null;
+  startedAt?: Date | null;
+  now?: Date;
 }): SendState {
   if (row.txHash) {
     if (row.recipientKind !== "claim_phone") return "in_account";
@@ -29,8 +31,14 @@ export function sendState(row: {
     if (claim === "returned") return "returned";
     return "waiting";
   }
-  return row.failed ? "failed" : "sending";
+  if (row.failed) return "failed";
+  // A send that never reached the chain within an hour isn't going to.
+  const started = row.startedAt?.getTime();
+  if (started != null && (row.now ?? new Date()).getTime() - started > STALE_SEND_MS) return "failed";
+  return "sending";
 }
+
+const STALE_SEND_MS = 60 * 60 * 1000;
 
 export type ActivityItem = {
   id: string;
@@ -60,6 +68,7 @@ export async function listActivity(senderId: string, limit = 50): Promise<Activi
     amount_usd: string | number;
     gift_tx_hash: string | null;
     gift_failed_at: Date | null;
+    gift_started_at: Date | null;
     created_at: Date;
   };
   const list = rows as Row[];
@@ -89,6 +98,7 @@ export async function listActivity(senderId: string, limit = 50): Promise<Activi
         failed: Boolean(r.gift_failed_at),
         recipientKind: recipient.kind ?? null,
         escrowStatus: r.gift_tx_hash ? (escrowByTx.get(r.gift_tx_hash.toLowerCase()) ?? null) : null,
+        startedAt: r.gift_started_at ? new Date(r.gift_started_at) : new Date(r.created_at),
       }),
       at: new Date(r.created_at).toISOString(),
     };

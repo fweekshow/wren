@@ -50,7 +50,12 @@ export function SettingsScreen({ onBack, onConnect, onAddCash, onSignOut }: Prop
         <View style={styles.section}>
           <SectionLabel>{copy.whoSees}</SectionLabel>
           {visibility && (
-            <PrivacyChoices value={visibility} onChange={pick} options={['only_me', 'your_people', 'everyone']} />
+            <PrivacyChoices
+              value={visibility}
+              onChange={pick}
+              options={['only_me', 'your_people', 'everyone']}
+              style={{ marginTop: 12 }}
+            />
           )}
         </View>
 
