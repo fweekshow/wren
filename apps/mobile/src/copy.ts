@@ -90,7 +90,7 @@ export const copy = {
   ],
   allowTrust: 'Allow this once and every send is one tap. Wren only moves what you send.',
   allowButton: 'Allow',
-  contactsTitle: 'Your people',
+  contactsTitle: 'Your contacts',
   contactsBody: 'So you can pick who to send to.',
   contactsTrust: 'Wren only texts people you send to.',
   contactsButton: 'Share Contacts',
@@ -103,7 +103,7 @@ export const copy = {
   support: 'Support',
   // Account
   tabAccount: 'Account',
-  tabPeople: 'People',
+  tabPeople: 'Contacts',
   tabActivity: 'Activity',
   whatSending: 'What are you sending?',
   whatBuying: 'What are you buying?',
@@ -139,9 +139,9 @@ export const copy = {
   send: 'Send',
   home: 'Home',
   // People
-  yourPeople: 'Your people',
+  yourPeople: 'Your contacts',
   peopleCount: (n: number) =>
-    n === 0 ? 'None of your people are on Wren yet.' : n === 1 ? '1 of your people is on Wren.' : `${n} of your people are on Wren.`,
+    n === 0 ? 'None of your contacts are on Wren yet.' : n === 1 ? '1 of your contacts is on Wren.' : `${n} of your contacts are on Wren.`,
   noPeople: 'Send someone their first stock. When they join, their moves show up here.',
   moves: 'Moves',
   moveBought: (name: string, stock: string) => `${name} bought ${stock}`,
@@ -194,10 +194,10 @@ export const copy = {
   // Settings
   whoSees: 'Who sees your moves',
   visOnlyMe: 'Only me',
-  visYourPeople: 'Your people',
+  visYourPeople: 'Your contacts',
   visNote: {
     only_me: 'No one sees what you buy or send.',
-    your_people: 'People you both have saved see what you buy. Never how much.',
+    your_people: 'Contacts who also saved you see what you buy. Never how much.',
   } as Record<string, string>,
   messagesOn: 'You get messages on',
   iMessage: 'iMessage',
