@@ -75,7 +75,7 @@ export const copy = {
   contactsTitle: 'Your people',
   contactsBody: 'So you can pick who to send to.',
   contactsTrust: 'Wren only texts people you send to.',
-  contactsButton: 'Continue',
+  contactsButton: 'Share Contacts',
   contactsSkip: 'Not now',
   contactsSettings: 'Settings',
   emptyPeople: 'No one on this phone yet.',
