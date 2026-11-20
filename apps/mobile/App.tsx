@@ -110,7 +110,7 @@ type Screen =
   | { name: 'addCash' }
   | { name: 'stock'; stock: Stock }
   | { name: 'buy'; symbol?: string }
-  | { name: 'bought'; usd: number; symbol: string; stockName: string; askPrivacy: boolean }
+  | { name: 'bought'; usd: number; symbol: string; stockName: string }
   | { name: 'activity' }
   | { name: 'profile'; phone: string; personName?: string }
   | { name: 'settings' }
@@ -422,7 +422,7 @@ function Shell() {
           onBack={back}
           onAddCash={() => go({ name: 'addCash' })}
           onBought={(r) =>
-            swap({ name: 'bought', usd: r.usd, symbol: r.symbol, stockName: r.stockName, askPrivacy: r.askPrivacy })
+            swap({ name: 'bought', usd: r.usd, symbol: r.symbol, stockName: r.stockName })
           }
         />
       )}
@@ -430,7 +430,6 @@ function Shell() {
         <BoughtScreen
           usd={screen.usd}
           stockName={screen.stockName}
-          askPrivacy={screen.askPrivacy}
           onHome={home}
           onSend={() => swap({ name: 'someone', symbol: screen.symbol })}
         />

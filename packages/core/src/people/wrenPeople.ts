@@ -2,8 +2,8 @@
 //
 // - Moves are what someone did and when ("Mom bought Apple"). Never dollars:
 //   no amount is stored or returned.
-// - Who sees your moves: only_me | your_people. Nobody is shared until they
-//   choose; the app asks after their first Buy. No row = only_me.
+// - Who sees your moves: only_me | your_people. New accounts start on
+//   your_people (no row = your_people); change it in Settings.
 // - Contacts only, both ways: you see someone's moves only if you both share
 //   and each of you has the other's number saved. Never strangers.
 // - Rows saved as "everyone" (an option we dropped) read as your_people.
@@ -73,7 +73,7 @@ export async function getVisibility(owner: string): Promise<{ visibility: Visibi
   const { rows } = await db.query(`SELECT visibility FROM wren_privacy WHERE owner = $1`, [norm(owner)]);
   const raw = rows[0]?.visibility as string | undefined;
   const v = (raw === "everyone" ? "your_people" : raw) as Visibility | undefined;
-  return v && VISIBILITIES.includes(v) ? { visibility: v, chosen: true } : { visibility: "only_me", chosen: false };
+  return v && VISIBILITIES.includes(v) ? { visibility: v, chosen: true } : { visibility: "your_people", chosen: false };
 }
 
 export async function setVisibility(owner: string, visibility: Visibility): Promise<void> {

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, layout, spacing, type } from '../theme';
 import { HeaderBack } from '../components/HeaderBack';
 import { Card, PillButton, rowLine, SectionLabel } from '../components/Market';
-import { PrivacyChoices } from './BoughtScreen';
+import { PrivacyChoices } from '../components/PrivacyChoices';
 import { ConnectState, getConnectState, getPrivacy, setPrivacy, Visibility } from '../api';
 import { copy } from '../copy';
 

@@ -9,7 +9,7 @@ import { color, type } from '../theme';
 
 type Props = {
   value: number;
-  size?: 'total' | 'amount' | 'amountXl';
+  size?: 'total' | 'balance' | 'amount' | 'amountXl';
   cents?: boolean;
   tone?: 'ink' | 'onBlue';
   align?: 'center' | 'left';
@@ -32,7 +32,14 @@ export function BigNumber({
   const n = Number(value) || 0;
   const [whole, frac] = n.toFixed(2).split('.');
   const w = Number(whole).toLocaleString('en-US');
-  const spec = size === 'amountXl' ? type.amountXl : size === 'amount' ? type.amount : type.total;
+  const spec =
+    size === 'amountXl'
+      ? type.amountXl
+      : size === 'amount'
+        ? type.amount
+        : size === 'balance'
+          ? type.balance
+          : type.total;
 
   // "$" and ".00" are 0.55 size each; count them as about one and a half digits.
   const ems = w.length * DIGIT_EM + (cents ? 1.5 : 0.5) * DIGIT_EM;
@@ -44,7 +51,8 @@ export function BigNumber({
     lineHeight: Math.round(spec.lineHeight * k),
     letterSpacing: spec.letterSpacing * k,
   };
-  const sideSize = Math.round(fontSize * 0.55);
+  // B7: the balance's "$" and cents are 34 on 72, a little smaller than elsewhere.
+  const sideSize = Math.round(fontSize * (size === 'balance' ? 0.47 : 0.55));
   const ink = tone === 'onBlue' ? color.textOnAction : color.textPrimary;
   const quiet = tone === 'onBlue' ? color.wrenBelly : color.textTertiary;
   const side = {

@@ -285,9 +285,7 @@ router.post("/api/app/buy", json, async (req: Request, res: Response) => {
         void sendPush(f, `${name} bought ${stockDisplayName(result.symbol)}`, "Tap to see what they hold.");
       }
     })().catch((err) => logger.warn({ err }, "[wren] move/notify failed"));
-    // First buy: the app asks who should see moves.
-    const privacy = await getVisibility(user).catch(() => ({ chosen: true }));
-    res.json({ ...result, askPrivacy: !privacy.chosen });
+    res.json(result);
   } catch (err) {
     if (err instanceof WrenBuyError) {
       res.status(err.status).json({ error: err.message, ...(err.details ?? {}) });

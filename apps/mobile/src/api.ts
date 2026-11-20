@@ -447,7 +447,6 @@ export type BuyResult = {
   usd: number;
   amountLabel: string;
   shares: string;
-  askPrivacy: boolean;
 };
 
 export function buyStock(symbol: string, usd: number): Promise<BuyResult> {

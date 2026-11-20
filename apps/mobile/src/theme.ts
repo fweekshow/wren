@@ -76,6 +76,10 @@ export const type = {
   tileName: { fontFamily: font.display, fontSize: 40, lineHeight: 40, letterSpacing: -40 * 0.04 },
   bubble: { fontFamily: font.ui, fontSize: 19, lineHeight: 25 },
   total: { fontFamily: font.display, fontSize: 64, lineHeight: 64, letterSpacing: -64 * 0.03 },
+  // Wren Bold (B7): the balance on Account and the price on a Stock page.
+  balance: { fontFamily: font.display, fontSize: 72, lineHeight: 78, letterSpacing: -72 * 0.05 },
+  // Wren Bold (B7): the value on a stock tile.
+  tileValue: { fontFamily: font.display, fontSize: 26, lineHeight: 26, letterSpacing: -26 * 0.03 },
   amount: { fontFamily: font.display, fontSize: 88, lineHeight: 88, letterSpacing: -88 * 0.03 },
   // Nov 2026: the amount inside its bubble, and the name on Sent.
   amountXl: { fontFamily: font.display, fontSize: 104, lineHeight: 102, letterSpacing: -104 * 0.04 },

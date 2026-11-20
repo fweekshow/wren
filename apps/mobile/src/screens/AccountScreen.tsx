@@ -1,7 +1,7 @@
 // Account, the home screen. Top bar: logo · Account | People · Settings.
 //
-// Account tab: Balance (cash + stocks), today's change and a balance line,
-// Your stocks (or Stocks you can send), the latest Activity.
+// Account tab (Wren Bold, B7): a big balance with today's change, stocks as
+// tiles (your biggest in Wren Blue) plus Cash, and the latest send as a bubble.
 // People tab: your people on Wren, their moves (only if you share yours),
 // and people not on Wren yet, each with Send.
 // Pinned: the channel line, then Buy | Send.
@@ -40,8 +40,9 @@ import {
 import { BigNumber } from '../components/BigNumber';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
-import { Card, Change, Letter, PillButton, rowLine, SectionLabel, Segmented, Sparkline } from '../components/Market';
-import { ActivityRows, EmptyCard } from './ActivityScreen';
+import { Card, Change, PillButton, rowLine, SectionLabel, Segmented, StockTile } from '../components/Market';
+import { BubbleCard } from '../components/BubbleCard';
+import { EmptyCard, stateLabel } from './ActivityScreen';
 
 type Tab = 'account' | 'people';
 
@@ -59,6 +60,7 @@ type Props = {
 };
 
 const logo = require('../../assets/logo.png');
+const TILE_GAP = 10;
 
 /** Balance over today: cash + each stock's shares × its price along the sparkline. */
 export function balanceLine(cash: number, holdings: Portfolio['holdings'], market: Map<string, MarketItem>): {
@@ -152,25 +154,25 @@ export function AccountScreen(props: Props) {
     </View>
   );
 
+  const tileW = (contentWidth - TILE_GAP) / 2;
+  const sorted = [...holdings].sort((a, b) => b.value - a.value);
+  const latest = activity?.[0];
+
   const accountTab = (
     <>
       <View style={styles.hero}>
         {portfolio ? (
           <>
             <Text style={styles.label}>{copy.balance}</Text>
-            <BigNumber value={portfolio.total} align="left" style={{ marginTop: 14 }} />
-            <View style={styles.todayRow}>
-              {holdings.length > 0 && <Change value={line.changePct} />}
-              <Text style={styles.caption}>
-                {holdings.length > 0 && line.changePct != null ? copy.todayCash(usd2(cash)) : copy.cashOnly(usd2(cash))}
-              </Text>
-            </View>
-            {line.values.length > 1 && (
-              <View style={{ marginTop: 18 }}>
-                <Sparkline values={line.values} width={contentWidth} height={72} strokeWidth={2} dot />
+            <BigNumber value={portfolio.total} size="balance" align="left" style={{ marginTop: 8 }} />
+            {holdings.length > 0 && line.changePct != null ? (
+              <View style={styles.todayRow}>
+                <Change value={line.changePct} />
+                <Text style={styles.caption}>{copy.today}</Text>
               </View>
-            )}
-            {portfolio.total <= 0 && <Text style={[styles.caption, { marginTop: 14 }]}>{copy.emptyAccount}</Text>}
+            ) : portfolio.total <= 0 ? (
+              <Text style={[styles.caption, styles.todayRow]}>{copy.emptyAccount}</Text>
+            ) : null}
           </>
         ) : failed ? (
           <>
@@ -183,59 +185,53 @@ export function AccountScreen(props: Props) {
         ) : (
           <>
             <View style={[styles.skel, { width: 72, height: 18 }]} />
-            <View style={[styles.skel, { width: 210, height: 64, borderRadius: 20, marginTop: 14 }]} />
-            <View style={[styles.skel, { width: 96, height: 24, marginTop: 14 }]} />
+            <View style={[styles.skel, { width: 230, height: 66, borderRadius: 20, marginTop: 8 }]} />
+            <View style={[styles.skel, { width: 96, height: 24, marginTop: 10 }]} />
           </>
         )}
       </View>
 
       <View style={styles.section}>
-        <SectionLabel>{holdings.length ? copy.yourStocks : copy.stocksYouCanSend}</SectionLabel>
-        <Card style={{ marginTop: 12 }}>
+        {!holdings.length && <SectionLabel>{copy.stocksYouCanSend}</SectionLabel>}
+        <View style={[styles.grid, !holdings.length && { marginTop: 12 }]}>
           {holdings.length
-            ? holdings.map((h, i) => {
-                const m = market.get(h.symbol);
-                return (
-                  <Pressable
-                    key={h.symbol}
-                    onPress={() => props.onOpenStock({ symbol: h.symbol, name: h.name })}
-                    style={[styles.stockRow, rowLine(i, holdings.length)]}
-                  >
-                    <Letter name={h.name} />
-                    <View style={styles.mid}>
-                      <Text style={styles.body} numberOfLines={1}>
-                        {h.name}
-                      </Text>
-                      <Text style={styles.ticker}>{ticker(h.symbol)}</Text>
-                    </View>
-                    <Sparkline values={m?.spark ?? []} />
-                    <View style={styles.valueCol}>
-                      <Text style={styles.price}>{usd2(h.value)}</Text>
-                      <Change value={m?.changePct} style={{ alignSelf: 'flex-end' }} />
-                    </View>
-                  </Pressable>
-                );
-              })
-            : stocks.map((s, i) => {
+            ? sorted.map((h, i) => (
+                <StockTile
+                  key={h.symbol}
+                  width={tileW}
+                  blue={i === 0}
+                  name={h.name}
+                  tickerText={ticker(h.symbol)}
+                  value={usd2(h.value)}
+                  change={market.get(h.symbol)?.changePct}
+                  onPress={() => props.onOpenStock({ symbol: h.symbol, name: h.name })}
+                />
+              ))
+            : stocks.map((s) => {
                 const m = market.get(s.symbol);
                 return (
-                  <Pressable
+                  <StockTile
                     key={s.symbol}
+                    width={tileW}
+                    name={s.name}
+                    tickerText={ticker(s.symbol)}
+                    value={m?.priceUsd ? usd2(m.priceUsd) : ''}
+                    change={m?.changePct}
                     onPress={() => props.onOpenStock(s)}
-                    style={[styles.stockRow, rowLine(i, stocks.length)]}
-                  >
-                    <Letter name={s.name} />
-                    <View style={styles.mid}>
-                      <Text style={styles.body} numberOfLines={1}>
-                        {s.name}
-                      </Text>
-                      <Text style={styles.ticker}>{ticker(s.symbol)}</Text>
-                    </View>
-                    <Text style={styles.price}>{m?.priceUsd ? usd2(m.priceUsd) : ''}</Text>
-                  </Pressable>
+                  />
                 );
               })}
-        </Card>
+          {portfolio && (holdings.length > 0 || cash > 0) && (
+            <StockTile
+              width={tileW}
+              name={copy.cashTile}
+              tickerText={copy.cashTicker}
+              value={usd2(cash)}
+              footer={cash > 0 ? copy.readyToSend : copy.addCashFirst}
+              onPress={cash > 0 ? props.onSend : props.onBuy}
+            />
+          )}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -248,11 +244,24 @@ export function AccountScreen(props: Props) {
             ) : null
           }
         >
-          {copy.activity}
+          {copy.latest}
         </SectionLabel>
-        <View style={{ marginTop: 12 }}>
-          {activity?.length ? (
-            <ActivityRows items={activity.slice(0, 3)} onOpen={(a) => a.phone && props.onOpenPerson(a.phone)} />
+        <View style={{ marginTop: 10 }}>
+          {latest ? (
+            <Pressable
+              onPress={() => latest.phone && props.onOpenPerson(latest.phone)}
+              style={{ alignSelf: 'flex-end', alignItems: 'flex-end' }}
+            >
+              <BubbleCard from="you">
+                {copy.youSentWho(
+                  (latest.name ?? latest.phone ?? copy.someone).split(' ')[0],
+                  copy.sendWhat(usdShort(latest.usd), latest.stockName),
+                )}
+              </BubbleCard>
+              <Text style={[styles.whenText, { marginTop: 6 }]}>
+                {stateLabel(latest)} · {when(latest.at)}
+              </Text>
+            </Pressable>
           ) : (
             <EmptyCard>{copy.noSends}</EmptyCard>
           )}
@@ -392,9 +401,10 @@ const styles = StyleSheet.create({
   title: { ...type.title, color: color.ink },
   caption: { ...type.caption, color: color.textSecondary },
   failed: { ...type.titleSm, color: color.ink, marginTop: 14 },
-  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP },
   skel: { backgroundColor: color.card, borderRadius: 999 },
-  section: { paddingHorizontal: spacing.screenPad, marginTop: 36 },
+  section: { paddingHorizontal: spacing.screenPad, marginTop: 24 },
   stockRow: { minHeight: 72, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   moveRow: { minHeight: 68, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
   mid: { flex: 1, minWidth: 0 },

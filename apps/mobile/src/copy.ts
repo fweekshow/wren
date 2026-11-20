@@ -101,6 +101,13 @@ export const copy = {
   tabPeople: 'People',
   settings: 'Settings',
   balance: 'Balance',
+  today: 'today',
+  latest: 'Latest',
+  cashTile: 'Cash',
+  cashTicker: 'USD',
+  readyToSend: 'Ready to send',
+  addCashFirst: 'Add cash to buy',
+  youSentWho: (name: string, what: string) => `You sent ${name} ${what}`,
   todayCash: (cash: string) => `today · ${cash} cash`,
   cashOnly: (cash: string) => `${cash} cash`,
   emptyAccount: 'Send a stock to get started.',
@@ -132,6 +139,8 @@ export const copy = {
   youHold: 'You hold',
   youSent: 'You sent',
   noneYet: 'None yet',
+  sendsCount: (n: number) => (n === 1 ? '1 send' : `${n} sends`),
+  nothingSent: 'Nothing sent yet',
   noChart: 'No chart yet.',
   // Buy
   buyTitle: 'Buy',
@@ -145,10 +154,6 @@ export const copy = {
   boughtWhat: (amount: string, stock: string) => `${amount} of ${stock} is in your account.`,
   sendItToSomeone: 'Send it to someone?',
   // First-buy privacy ask
-  showPeopleTitle: 'Show your people?',
-  showPeopleBody: (stock: string) => `They’ll see you bought ${stock}. Never how much.`,
-  showPeopleNote: 'Change it any time in Settings.',
-  done: 'Done',
   // Activity
   onlyYou: 'Only you see this.',
   someone: 'Someone',

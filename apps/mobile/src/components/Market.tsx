@@ -74,9 +74,9 @@ export function Chart({ values, width, height = 180 }: { values: number[]; width
   return (
     <Svg width={width} height={height} style={{ overflow: 'visible' }}>
       <Line x1={0} x2={width} y1={baseY} y2={baseY} stroke={color.hairline} strokeWidth={1} strokeDasharray="2 4" />
-      <Path d={d} fill="none" stroke={color.ink} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-      <Circle cx={end.x} cy={end.y} r={9} fill={color.canvas} />
-      <Circle cx={end.x} cy={end.y} r={4.5} fill={color.ink} />
+      <Path d={d} fill="none" stroke={color.ink} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
+      <Circle cx={end.x} cy={end.y} r={10} fill={color.canvas} />
+      <Circle cx={end.x} cy={end.y} r={6} fill={color.ink} />
     </Svg>
   );
 }
@@ -188,4 +188,72 @@ const styles = StyleSheet.create({
   sectionRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   section: { ...type.label, color: color.textSecondary },
   card: { backgroundColor: color.card, borderRadius: radius.card, overflow: 'hidden' },
+});
+
+/**
+ * Wren Bold stock tile (B7): name and ticker on top, the value big at the
+ * bottom with today's change. `blue` is the one Wren Blue tile (your biggest
+ * holding); the rest are Gray 10. `footer` replaces the change chip (Cash).
+ */
+export function StockTile({
+  name,
+  tickerText,
+  value,
+  change,
+  blue = false,
+  footer,
+  width,
+  onPress,
+}: {
+  name: string;
+  tickerText: string;
+  value: string;
+  change?: number | null;
+  blue?: boolean;
+  footer?: string;
+  width: number;
+  onPress?: () => void;
+}) {
+  const ink = blue ? color.textOnAction : color.ink;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${name}, ${value}`}
+      style={({ pressed }) => [
+        tileStyles.tile,
+        { width, backgroundColor: blue ? color.wrenBody : color.card },
+        pressed && tileStyles.pressed,
+      ]}
+    >
+      <View style={tileStyles.top}>
+        <Text style={[tileStyles.name, { color: ink }]} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={[tileStyles.ticker, { color: blue ? color.wrenTint : color.textSecondary }]}>{tickerText}</Text>
+      </View>
+      <View>
+        <Text style={[type.tileValue, { color: ink }]} numberOfLines={1} adjustsFontSizeToFit>
+          {value}
+        </Text>
+        <View style={tileStyles.foot}>
+          {footer ? (
+            <Text style={[type.caption, { color: blue ? color.wrenTint : color.textSecondary }]}>{footer}</Text>
+          ) : (
+            <Change value={change} />
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+const tileStyles = StyleSheet.create({
+  tile: { borderRadius: radius.tile, padding: 16, minHeight: 132, justifyContent: 'space-between' },
+  pressed: { transform: [{ scale: 0.97 }] },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  name: { fontFamily: font.uiSemiBold, fontSize: 16, lineHeight: 18, flexShrink: 1 },
+  ticker: { ...type.ticker },
+  foot: { marginTop: 8, minHeight: 24, justifyContent: 'center', alignItems: 'flex-start' },
 });
