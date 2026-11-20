@@ -138,7 +138,7 @@ export const copy = {
   seeAll: 'See all',
   noSends: 'No sends yet.',
   channelLine: (app: string) => `Messages go out on ${app} · Change`,
-  channelNone: 'Connect iMessage or WhatsApp',
+  channelNone: 'Turn on iMessage or WhatsApp  ›',
   buy: 'Buy',
   send: 'Send',
   home: 'Home',

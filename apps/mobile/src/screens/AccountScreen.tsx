@@ -381,8 +381,15 @@ export function AccountScreen(props: Props) {
       </ScrollView>
       <View style={[styles.pinned, { paddingBottom: Math.max(insets.bottom, spacing.homeIndicator) }]}>
         {channel !== undefined && (
-          <Pressable onPress={props.onConnect} hitSlop={8}>
-            <Text style={styles.channel}>{channel ? copy.channelLine(channel) : copy.channelNone}</Text>
+          <Pressable
+            onPress={props.onConnect}
+            hitSlop={8}
+            accessibilityRole="button"
+            style={({ pressed }) => [!channel && styles.channelPill, pressed && { opacity: 0.8 }]}
+          >
+            <Text style={channel ? styles.channel : styles.channelPillText}>
+              {channel ? copy.channelLine(channel) : copy.channelNone}
+            </Text>
           </Pressable>
         )}
         <View style={styles.actions}>
@@ -453,5 +460,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   channel: { ...type.caption, color: color.textSecondary, textAlign: 'center' },
+  // Not connected yet: the step that makes Wren work in chats, so make it
+  // look tappable, in Wren's people tint.
+  channelPill: {
+    alignSelf: 'center',
+    height: 36,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: color.wrenTint,
+    justifyContent: 'center',
+  },
+  channelPillText: { fontFamily: font.bold, fontSize: 14, color: color.wrenWing },
   actions: { flexDirection: 'row', gap: 10 },
 });
