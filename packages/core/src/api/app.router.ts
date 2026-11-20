@@ -38,6 +38,7 @@ import { VERIFIED_STABLES } from "@/portfolio/verifiedStables.js";
 import { logger } from "@/utils/logger.js";
 import { listPaidFinesForSender } from "@/swear-jar/store.js";
 import { SWEAR_FINE_USD } from "@/swear-jar/constants.js";
+import { onlyPriceable, priceableSymbols } from "@/discovery/stocks/priceHistory.js";
 
 const router = Router();
 const json = express.json({ limit: "256kb" });
@@ -520,7 +521,8 @@ router.post("/api/app/send", json, async (req: Request, res: Response) => {
 
 router.get("/api/app/stocks", async (_req: Request, res: Response) => {
   res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  res.json({ items: listPublicStocks() });
+  // Only stocks Wren can price; the rest would fail at the quote.
+  res.json({ items: onlyPriceable(listPublicStocks(), await priceableSymbols()) });
 });
 
 router.post("/api/app/stock-gifts", json, async (req: Request, res: Response) => {

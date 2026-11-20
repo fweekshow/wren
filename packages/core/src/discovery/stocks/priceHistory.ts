@@ -262,11 +262,44 @@ export async function stockPriceHistory(
   return { symbol, range, priceUsd: last, changePct: changePct(baseline, last), points: downsample(points) };
 }
 
+// ── Which stocks Wren can price ────────────────────────────────────────────
+// Some catalog stocks have no Chainlink feed and no Aerodrome pool, so quotes
+// fail. A stock is shown only if a price was saved for it in the last 4 days;
+// it comes back by itself once Coinbase adds a feed or pool.
+const PRICEABLE_WINDOW = "4 days";
+let priceableCache: { at: number; symbols: Set<string> | null } | null = null;
+
+/**
+ * Symbols with a recent saved price, or null when that can't be known yet
+ * (no snapshots so far, or the database is unreachable). Callers show
+ * everything on null so the list is never empty by mistake.
+ */
+export async function priceableSymbols(): Promise<Set<string> | null> {
+  if (priceableCache && Date.now() - priceableCache.at < 5 * 60_000) return priceableCache.symbols;
+  let symbols: Set<string> | null = null;
+  try {
+    await ensureTable();
+    const { rows } = await db.query(
+      `SELECT DISTINCT symbol FROM stock_prices WHERE at > NOW() - INTERVAL '${PRICEABLE_WINDOW}'`,
+    );
+    const found = new Set((rows as { symbol: string }[]).map((r) => r.symbol));
+    symbols = found.size ? found : null;
+  } catch {
+    symbols = null;
+  }
+  priceableCache = { at: Date.now(), symbols };
+  return symbols;
+}
+
+export function onlyPriceable<T extends { symbol: string }>(items: T[], priceable: Set<string> | null): T[] {
+  return priceable ? items.filter((i) => priceable.has(i.symbol)) : items;
+}
+
 /** Every sendable stock with its latest price, change over 24h and a 1D sparkline. */
 export async function stockMarket(): Promise<
   { symbol: string; name: string; priceUsd: number | null; changePct: number | null; spark: number[] }[]
 > {
-  const offers = listSpotBuyableOffers();
+  const offers = onlyPriceable(listSpotBuyableOffers(), await priceableSymbols());
   return Promise.all(
     offers.map(async (o) => {
       const h = await stockPriceHistory(o.symbol, "1D").catch(() => null);

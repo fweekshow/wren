@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { changePct, downsample } from "./priceHistory.js";
+import { changePct, downsample, onlyPriceable } from "./priceHistory.js";
+
+describe("only priceable stocks", () => {
+  const items = [{ symbol: "AAPLc" }, { symbol: "ARMc" }, { symbol: "NVDAc" }];
+
+  it("keeps stocks with a recent price", () => {
+    expect(onlyPriceable(items, new Set(["AAPLc", "NVDAc"])).map((i) => i.symbol)).toEqual(["AAPLc", "NVDAc"]);
+  });
+
+  it("shows everything when prices aren't known yet", () => {
+    expect(onlyPriceable(items, null)).toEqual(items);
+  });
+});
 
 describe("price history helpers", () => {
   it("keeps short series as they are", () => {
