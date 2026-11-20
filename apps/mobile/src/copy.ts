@@ -106,6 +106,7 @@ export const copy = {
   tabPeople: 'Friends',
   tabActivity: 'Activity',
   thisWeek: 'This week',
+  times: (n: number) => `${n} times`,
   boughtShort: (stock: string) => `Bought ${stock}`,
   earlier: 'Earlier',
   whatSending: 'What are you sending?',

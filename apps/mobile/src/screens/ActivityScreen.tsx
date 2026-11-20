@@ -16,7 +16,7 @@ import { copy } from '../copy';
 import { usdShort, when } from '../format';
 
 export function stateLabel(a: ActivityItem): string {
-  const first = (a.name ?? '').split(' ')[0] || copy.someone;
+  const first = niceName(a.name ?? '').split(' ')[0] || copy.someone;
   switch (a.state) {
     case 'sending':
       return copy.stateSending;
@@ -34,6 +34,40 @@ export function stateLabel(a: ActivityItem): string {
 }
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type Shown = ActivityItem & { count: number };
+
+/** "LEO GONZALEZ" → "Leo Gonzalez" (contacts sometimes come in all caps). */
+export function niceName(name: string): string {
+  return /[A-Z]/.test(name) && name === name.toUpperCase()
+    ? name.toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (m) => m.toUpperCase())
+    : name;
+}
+
+/**
+ * What's worth showing: a send that didn't go through stops mattering after a
+ * day (no money moved), and repeats of the same thing on the same day (five
+ * tries of $2 of Apple to Leo) become one card with a count.
+ */
+function tidy(items: ActivityItem[], now: number): Shown[] {
+  const out: Shown[] = [];
+  for (const a of items) {
+    if (a.state === 'failed' && now - Date.parse(a.at) > DAY_MS) continue;
+    const prev = out[out.length - 1];
+    const same =
+      prev &&
+      prev.kind === a.kind &&
+      (prev.phone ?? prev.name) === (a.phone ?? a.name) &&
+      prev.symbol === a.symbol &&
+      prev.usd === a.usd &&
+      prev.state === a.state &&
+      new Date(prev.at).toDateString() === new Date(a.at).toDateString();
+    if (same) prev.count += 1;
+    else out.push({ ...a, count: 1 });
+  }
+  return out;
+}
 const TUCK = 28;
 
 /**
@@ -49,9 +83,10 @@ export function ActivityRows({
   onOpen?: (a: ActivityItem) => void;
 }) {
   const now = Date.now();
+  const shown = tidy(items, now);
   const groups = [
-    { label: copy.thisWeek, items: items.filter((a) => now - Date.parse(a.at) < WEEK_MS) },
-    { label: copy.earlier, items: items.filter((a) => now - Date.parse(a.at) >= WEEK_MS) },
+    { label: copy.thisWeek, items: shown.filter((a) => now - Date.parse(a.at) < WEEK_MS) },
+    { label: copy.earlier, items: shown.filter((a) => now - Date.parse(a.at) >= WEEK_MS) },
   ]
     .filter((g) => g.items.length)
     .map((g) => ({ ...g, colors: stackColors(g.items.map((a) => stockColor(a.symbol))) }));
@@ -63,7 +98,7 @@ export function ActivityRows({
           <View style={{ marginTop: 12 }}>
             {g.items.map((a, i) => {
               const buy = a.kind === 'buy';
-              const title = buy ? copy.youBought : (a.name ?? a.phone ?? copy.someone);
+              const title = buy ? copy.youBought : niceName(a.name ?? a.phone ?? copy.someone);
               const sc = g.colors[i];
               return (
                 <Pressable
@@ -84,6 +119,7 @@ export function ActivityRows({
                     </Text>
                     <Text style={[styles.cardWhat, { color: sc.ink }]} numberOfLines={1}>
                       {copy.sendWhat(usdShort(a.usd), a.stockName)} · {when(a.at)}
+                      {a.count > 1 ? ` · ${copy.times(a.count)}` : ''}
                     </Text>
                   </View>
                   <View style={styles.pill}>
