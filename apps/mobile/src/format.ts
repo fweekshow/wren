@@ -28,3 +28,12 @@ export function when(iso: string, now = Date.now()): string {
 export function ticker(symbol: string): string {
   return symbol.replace(/c$/, '');
 }
+
+/** The time under your finger on a chart: "2:30 PM" for a day, "Tue 2:30 PM" for a week, else "Nov 18". */
+export function chartTime(ms: number, range: '1D' | '1W' | '1M' | '1Y'): string {
+  const d = new Date(ms);
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  if (range === '1D') return time;
+  if (range === '1W') return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${time}`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(range === '1Y' ? { year: 'numeric' } : {}) });
+}

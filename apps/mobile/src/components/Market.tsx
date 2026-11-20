@@ -26,9 +26,10 @@ function pathFor(
   h: number,
   pad = 2,
   padX = 0,
+  scaleTo: number[] = values,
 ): { d: string; end: { x: number; y: number }; y: (v: number) => number } {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = Math.min(...scaleTo);
+  const max = Math.max(...scaleTo);
   const span = max - min || 1;
   const y = (v: number) => pad + (h - pad * 2) * (1 - (v - min) / span);
   const step = values.length > 1 ? (w - padX) / (values.length - 1) : 0;
@@ -65,19 +66,81 @@ export function Sparkline({
   );
 }
 
-/** The stock page chart: a line, a dotted baseline at the opening price, a dot at now. */
-export function Chart({ values, width, height = 180 }: { values: number[]; width: number; height?: number }) {
+/**
+ * The stock page chart: a line, a dotted baseline at the opening price, a dot
+ * at now. Touch and drag: a marker follows the finger, the line past it goes
+ * gray, and `onScrub` reports the point (null on release) so the page can
+ * show that price and time.
+ */
+export function Chart({
+  values,
+  width,
+  height = 180,
+  onScrub,
+}: {
+  values: number[];
+  width: number;
+  height?: number;
+  onScrub?: (index: number | null) => void;
+}) {
+  const [at, setAt] = React.useState<number | null>(null);
   if (values.length < 2) return <View style={{ width, height }} />;
-  // Keep the end dot inside the drawing; SVG clips anything past the edge.
-  const { d, end, y } = pathFor(values, width, height, 10, 10);
+  const pad = 10;
+  const { d, end, y } = pathFor(values, width, height, pad, pad);
   const baseY = y(values[0]);
+  const step = (width - pad) / (values.length - 1);
+
+  const pick = (x: number) => {
+    const i = Math.max(0, Math.min(values.length - 1, Math.round(x / step)));
+    if (i !== at) {
+      setAt(i);
+      onScrub?.(i);
+    }
+  };
+  const release = () => {
+    setAt(null);
+    onScrub?.(null);
+  };
+
+  const px = at != null ? at * step : 0;
+  const py = at != null ? y(values[at]) : 0;
+  // While touching: ink up to the finger, gray after it.
+  const upTo = at != null ? pathFor(values.slice(0, at + 1), at * step || 0.01, height, pad, 0, values) : null;
+
   return (
-    <Svg width={width} height={height} style={{ overflow: 'visible' }}>
-      <Line x1={0} x2={width} y1={baseY} y2={baseY} stroke={color.hairline} strokeWidth={1} strokeDasharray="2 4" />
-      <Path d={d} fill="none" stroke={color.ink} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
-      <Circle cx={end.x} cy={end.y} r={10} fill={color.canvas} />
-      <Circle cx={end.x} cy={end.y} r={6} fill={color.ink} />
-    </Svg>
+    <View
+      style={{ width, height }}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderTerminationRequest={() => false}
+      onResponderGrant={(e) => pick(e.nativeEvent.locationX)}
+      onResponderMove={(e) => pick(e.nativeEvent.locationX)}
+      onResponderRelease={release}
+      onResponderTerminate={release}
+      accessibilityRole="adjustable"
+      accessibilityLabel="Price chart. Touch and drag to see past prices."
+    >
+      <Svg width={width} height={height}>
+        <Line x1={0} x2={width} y1={baseY} y2={baseY} stroke={color.hairline} strokeWidth={1} strokeDasharray="2 4" />
+        {at == null ? (
+          <>
+            <Path d={d} fill="none" stroke={color.ink} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
+            <Circle cx={end.x} cy={end.y} r={10} fill={color.canvas} />
+            <Circle cx={end.x} cy={end.y} r={6} fill={color.ink} />
+          </>
+        ) : (
+          <>
+            <Path d={d} fill="none" stroke={color.hairline} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
+            {upTo && (
+              <Path d={upTo.d} fill="none" stroke={color.ink} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
+            )}
+            <Line x1={px} x2={px} y1={0} y2={height} stroke={color.ink} strokeWidth={1} />
+            <Circle cx={px} cy={py} r={10} fill={color.canvas} />
+            <Circle cx={px} cy={py} r={6} fill={color.ink} />
+          </>
+        )}
+      </Svg>
+    </View>
   );
 }
 

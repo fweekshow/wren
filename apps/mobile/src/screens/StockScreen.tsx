@@ -15,7 +15,7 @@ import { Change, Chart, Segmented, StockTile } from '../components/Market';
 import { getActivity, getHistory, getPortfolio, getStocks, History, Range, Stock } from '../api';
 import { copy } from '../copy';
 import { usd2 } from '../fees';
-import { ticker } from '../format';
+import { chartTime, ticker } from '../format';
 
 const RANGES: Range[] = ['1D', '1W', '1M', '1Y'];
 
@@ -55,26 +55,36 @@ export function StockScreen({ stock, onBack, onBuy, onSend }: Props) {
     })();
   }, [stock]);
 
-  const values = (history?.points ?? []).map((p) => p[1]);
+  const points = history?.points ?? [];
+  const values = points.map((p) => p[1]);
+  const [scrub, setScrub] = useState<number | null>(null);
+  const touching = scrub != null && scrub < values.length && values.length > 1;
+  const shownPrice = touching ? values[scrub] : (history?.priceUsd ?? 0);
+  const shownChange = touching
+    ? values[0] > 0
+      ? ((values[scrub] - values[0]) / values[0]) * 100
+      : null
+    : history?.changePct;
+  const shownWhen = touching ? chartTime(points[scrub][0], range) : copy.rangeWord[range];
 
   const tileW = (width - spacing.screenPad * 2 - 10) / 2;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <HeaderBack onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} scrollEnabled={!touching}>
         <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
           {stock.name}
         </Text>
         <Text style={styles.ticker}>{ticker(stock.symbol)}</Text>
-        <BigNumber value={history?.priceUsd ?? 0} size="balance" align="left" style={{ marginTop: 20 }} />
+         <BigNumber value={shownPrice} size="balance" align="left" style={{ marginTop: 20 }} />
         <View style={styles.changeRow}>
-          <Change value={history?.changePct} />
-          <Text style={styles.caption}>{copy.rangeWord[range]}</Text>
+          <Change value={shownChange} />
+          <Text style={styles.caption}>{shownWhen}</Text>
         </View>
         <View style={styles.chart}>
           {values.length > 1 ? (
-            <Chart values={values} width={width - spacing.screenPad * 2} height={CHART_H} />
+            <Chart values={values} width={width - spacing.screenPad * 2} height={CHART_H} onScrub={setScrub} />
           ) : (
             <Text style={styles.caption}>{history ? copy.noChart : ''}</Text>
           )}
