@@ -33,21 +33,23 @@ export function Change({
   if (value == null || !Number.isFinite(value)) return null;
   const up = value >= 0;
   const pct = `${Math.abs(value).toFixed(2)}%`;
-  const label = `${up ? 'Up' : 'Down'} ${pct}`;
+  // Rounds to 0.00%: no move, so no arrow and no up/down color.
+  const flat = pct === '0.00%';
+  const label = flat ? `Flat ${pct}` : `${up ? 'Up' : 'Down'} ${pct}`;
   if (on) {
     return (
       <View style={[styles.changeBare, style]} accessibilityLabel={label}>
-        <Arrow up={up} fill={on} />
+        {!flat && <Arrow up={up} fill={on} />}
         <Text style={[styles.changeText, { color: on }]}>{pct}</Text>
       </View>
     );
   }
   return (
     <View
-      style={[styles.change, { backgroundColor: up ? color.moveUp : color.moveDown }, style]}
+      style={[styles.change, { backgroundColor: flat ? color.card : up ? color.moveUp : color.moveDown }, style]}
       accessibilityLabel={label}
     >
-      <Arrow up={up} fill={color.ink} />
+      {!flat && <Arrow up={up} fill={color.ink} />}
       <Text style={styles.changeText}>{pct}</Text>
     </View>
   );
@@ -338,7 +340,12 @@ export function StockTile({
       style={({ pressed }) => [tileStyles.tile, { width, backgroundColor: colors.bg }, pressed && tileStyles.pressed]}
     >
       <View style={tileStyles.top}>
-        <Text style={[tileStyles.name, { color: colors.ink }]} numberOfLines={1}>
+        <Text
+          style={[tileStyles.name, { color: colors.ink }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
           {name}
         </Text>
         <Text style={[tileStyles.ticker, { color: colors.soft }]}>{tickerText}</Text>
@@ -433,9 +440,13 @@ const WALLET_TUCK = 26;
 
 const tileStyles = StyleSheet.create({
   tile: { borderRadius: 28, padding: 16, minHeight: 148 },
+  // The white outline keeps each card's top edge visible when it sits on a
+  // card of the same color (three Apple sends in a row).
   wallet: {
     height: 96,
     borderRadius: 30,
+    borderWidth: 2,
+    borderColor: color.canvas,
     paddingHorizontal: 20,
     paddingTop: 18,
     flexDirection: 'row',
@@ -499,4 +510,77 @@ const chosenStyles = StyleSheet.create({
   name: { fontFamily: font.display, fontSize: 20, lineHeight: 24 },
   change: { height: 40, paddingHorizontal: 16, borderRadius: 999, backgroundColor: color.canvas, justifyContent: 'center' },
   changeText: { fontFamily: font.bold, fontSize: 15, color: color.ink },
+});
+
+/**
+ * A friend in the stack: their color, a white face, the name big, one quiet
+ * line (their latest buy), and Send. The card opens them; Send starts a send.
+ */
+export function PersonCard({
+  name,
+  line,
+  colors,
+  first,
+  quiet = false,
+  onPress,
+  onSend,
+}: {
+  name: string;
+  line?: string;
+  colors: StockColor;
+  first: boolean;
+  /** Not on Wren yet: gray card, ink Send pill. */
+  quiet?: boolean;
+  onPress: () => void;
+  onSend: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={line ? `${name}. ${line}` : name}
+      style={({ pressed }) => [
+        tileStyles.wallet,
+        personStyles.card,
+        { backgroundColor: colors.bg, marginTop: first ? 0 : -WALLET_TUCK },
+        pressed && tileStyles.pressed,
+      ]}
+    >
+      <View style={personStyles.face}>
+        <Text style={personStyles.initial}>{name.slice(0, 1).toUpperCase()}</Text>
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[tileStyles.walletName, { color: colors.ink }]} numberOfLines={1}>
+          {name}
+        </Text>
+        {line ? (
+          <Text style={[personStyles.line, { color: colors.ink }]} numberOfLines={1}>
+            {line}
+          </Text>
+        ) : null}
+      </View>
+      <Pressable
+        onPress={onSend}
+        accessibilityRole="button"
+        accessibilityLabel={`Send ${name} a stock`}
+        hitSlop={8}
+        style={({ pressed }) => [
+          personStyles.send,
+          { backgroundColor: quiet ? color.ink : color.canvas },
+          pressed && { opacity: 0.85 },
+        ]}
+      >
+        <Text style={[personStyles.sendText, { color: quiet ? color.textOnAction : color.ink }]}>Send</Text>
+      </Pressable>
+    </Pressable>
+  );
+}
+
+const personStyles = StyleSheet.create({
+  card: { alignItems: 'flex-start', gap: 12, paddingLeft: 14 },
+  face: { width: 44, height: 44, borderRadius: 22, backgroundColor: color.canvas, alignItems: 'center', justifyContent: 'center', marginTop: -4 },
+  initial: { fontFamily: font.display, fontSize: 19, color: color.ink },
+  line: { fontFamily: font.uiRegular, fontSize: 13, lineHeight: 18, marginTop: 2, opacity: 0.85 },
+  send: { height: 36, paddingHorizontal: 16, borderRadius: 999, justifyContent: 'center', marginTop: -2 },
+  sendText: { fontFamily: font.bold, fontSize: 15 },
 });

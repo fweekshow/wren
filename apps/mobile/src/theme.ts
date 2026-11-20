@@ -45,22 +45,52 @@ export const color = {
   tangerine: '#FF8A3D',
 } as const;
 
-export type StockColor = { bg: string; ink: string; soft: string };
+export type StockColor = { bg: string; ink: string; soft: string; tint?: StockColor };
 
+const dark = { ink: color.ink, soft: '#3A3D44' };
+const tint = (bg: string, ink: string = color.ink, soft = '#3A3D44'): StockColor => ({ bg, ink, soft });
+
+// Each color has a lighter tint, used only when a card would sit on a card of
+// the same color (see stackColors).
 const STOCK_COLORS: StockColor[] = [
-  { bg: color.blue, ink: '#FFFFFF', soft: '#BCCDFB' },
-  { bg: color.lime, ink: color.ink, soft: '#3A3D44' },
-  { bg: color.coral, ink: color.ink, soft: '#3A3D44' },
-  { bg: color.lilac, ink: color.ink, soft: '#3A3D44' },
-  { bg: color.mint, ink: color.ink, soft: '#3A3D44' },
-  { bg: color.tangerine, ink: color.ink, soft: '#3A3D44' },
-  { bg: color.ink, ink: '#FFFFFF', soft: '#A7ADB8' },
+  { bg: color.blue, ink: '#FFFFFF', soft: '#BCCDFB', tint: tint('#BCCDFB') },
+  { bg: color.lime, ...dark, tint: tint('#E4F8C8') },
+  { bg: color.coral, ...dark, tint: tint('#FFE1D6') },
+  { bg: color.lilac, ...dark, tint: tint('#E4DEFF') },
+  { bg: color.mint, ...dark, tint: tint('#D3F5EA') },
+  { bg: color.tangerine, ...dark, tint: tint('#FFD3B3') },
+  { bg: color.ink, ink: '#FFFFFF', soft: '#A7ADB8', tint: tint('#3A3D44', '#FFFFFF', '#C7CBD3') },
 ];
 
 // Fixed picks for the stocks Wren sells today, so the big names never clash.
 const FIXED: Record<string, number> = { AAPL: 0, NVDA: 1, TSLA: 2, META: 3, MSFT: 4, AMZN: 5, GOOGL: 6, MSTR: 3, SNDK: 4, SPCX: 6 };
 
-export const cashColor: StockColor = { bg: color.sun, ink: color.ink, soft: '#3A3D44' };
+/** A person's color: steady per name, from the same palette. */
+export function personColor(name: string): StockColor {
+  const i = [...name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % STOCK_COLORS.length;
+  return STOCK_COLORS[(i + 3) % STOCK_COLORS.length];
+}
+
+export const cashColor: StockColor = { bg: color.sun, ...dark, tint: tint('#FFF1B8') };
+
+/** Not on Wren yet: quiet gray cards. */
+export const quietColor: StockColor = { bg: color.card, ...dark, tint: tint('#F6F7F9') };
+
+/**
+ * Color is identity (a stock or a person keeps its color everywhere), but two
+ * touching cards in a stack must never look the same. When a card would sit
+ * on a card of the same color, it takes that color's lighter tint instead:
+ * Apple, Apple, Apple → blue, light blue, blue.
+ */
+export function stackColors(colors: StockColor[]): StockColor[] {
+  const out: StockColor[] = [];
+  colors.forEach((c, i) => {
+    const prevBase = colors[i - 1];
+    const prevUsed = out[i - 1];
+    out.push(prevBase && prevBase.bg === c.bg && prevUsed === prevBase && c.tint ? c.tint : c);
+  });
+  return out;
+}
 
 /** One color per stock, the same on every screen. */
 export function stockColor(symbol: string): StockColor {
@@ -137,3 +167,18 @@ export const type = {
   price: { fontFamily: font.mono, fontSize: 16, lineHeight: 22 },
   percent: { fontFamily: font.monoMedium, fontSize: 13, lineHeight: 16 },
 } as const;
+
+/**
+ * The same no-repeat rule for a grid: a tile takes its tint when it would
+ * match the tile to its left or the one above it.
+ */
+export function gridColors(colors: StockColor[], columns = 2): StockColor[] {
+  const out: StockColor[] = [];
+  colors.forEach((c, i) => {
+    const left = i % columns ? out[i - 1] : undefined;
+    const above = out[i - columns];
+    const clash = [left, above].some((n) => n && n.bg === c.bg);
+    out.push(clash && c.tint ? c.tint : c);
+  });
+  return out;
+}

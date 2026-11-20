@@ -19,7 +19,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { cashColor, color, layout, spacing, stockColor, type } from '../theme';
+import { cashColor, color, font, layout, personColor, quietColor, spacing, stackColors, gridColors, stockColor, type } from '../theme';
 import { usd2 } from '../fees';
 import { copy } from '../copy';
 import { ticker, usdShort, when } from '../format';
@@ -41,7 +41,8 @@ import {
 import { BigNumber } from '../components/BigNumber';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
-import { Card, Change, PillButton, rowLine, SectionLabel, Segmented, StockTile, WalletCard } from '../components/Market';
+import { Change, PersonCard, PillButton, SectionLabel, Segmented, StockTile, WalletCard } from '../components/Market';
+import { SearchField } from '../components/SearchField';
 import { ActivityRows, EmptyCard } from './ActivityScreen';
 import { Icon } from '../components/Icon';
 import { BubbleCard } from '../components/BubbleCard';
@@ -56,6 +57,7 @@ type Props = {
   onBuy: () => void;
   onOpenStock: (stock: Stock) => void;
   onSettings: () => void;
+  onAllStocks: () => void;
   onActivity: () => void;
   onConnect: () => void;
   onOpenPerson: (phone: string, name?: string) => void;
@@ -64,6 +66,8 @@ type Props = {
 
 const logo = require('../../assets/logo.png');
 const TILE_GAP = 10;
+// Account shows a few stocks; the full list is a tap away (it's searchable).
+const TILE_LIMIT = 6;
 
 /** Balance over today: cash + each stock's shares × its price along the sparkline. */
 export function balanceLine(cash: number, holdings: Portfolio['holdings'], market: Map<string, MarketItem>): {
@@ -101,6 +105,7 @@ export function AccountScreen(props: Props) {
   const [people, setPeople] = useState<{ onWren: WrenPerson[]; notOnWren: WrenPerson[] } | null>(null);
   const [moves, setMoves] = useState<{ sharing: boolean; items: Move[] } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [friendQ, setFriendQ] = useState('');
 
   const load = useCallback(async () => {
     const [catalog, mk] = await Promise.all([
@@ -169,7 +174,9 @@ export function AccountScreen(props: Props) {
   const tileW = (contentWidth - TILE_GAP) / 2;
   const sorted = [...holdings].sort((a, b) => b.value - a.value);
   const held = new Set(holdings.map((h) => h.symbol));
+  const holdColors = stackColors([...sorted.map((h) => stockColor(h.symbol)), cashColor]);
   const toSend = stocks.filter((s) => !held.has(s.symbol));
+  const sendColors = gridColors(toSend.map((s) => stockColor(s.symbol)));
 
   const accountTab = (
     <>
@@ -212,7 +219,7 @@ export function AccountScreen(props: Props) {
               <WalletCard
                 key={h.symbol}
                 first={i === 0}
-                colors={stockColor(h.symbol)}
+                colors={holdColors[i]}
                 name={h.name}
                 tickerText={ticker(h.symbol)}
                 value={usd2(h.value)}
@@ -222,7 +229,7 @@ export function AccountScreen(props: Props) {
             ))}
             <WalletCard
               first={sorted.length === 0}
-              colors={cashColor}
+              colors={holdColors[sorted.length]}
               name={copy.cashTile}
               tickerText={copy.cashTicker}
               value={usd2(cash)}
@@ -237,13 +244,13 @@ export function AccountScreen(props: Props) {
         <View style={styles.section}>
           <SectionLabel>{copy.stocksYouCanSend}</SectionLabel>
           <View style={[styles.grid, { marginTop: 12 }]}>
-            {toSend.map((s) => {
+            {toSend.slice(0, TILE_LIMIT).map((s, i) => {
               const m = market.get(s.symbol);
               return (
                 <StockTile
                   key={s.symbol}
                   width={tileW}
-                  colors={stockColor(s.symbol)}
+                  colors={sendColors[i]}
                   name={s.name}
                   tickerText={ticker(s.symbol)}
                   value={m?.priceUsd ? usd2(m.priceUsd) : ''}
@@ -254,6 +261,15 @@ export function AccountScreen(props: Props) {
               );
             })}
           </View>
+          {toSend.length > TILE_LIMIT && (
+            <Pressable
+              onPress={props.onAllStocks}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.seeAllButton, pressed && { backgroundColor: color.pressed }]}
+            >
+              <Text style={styles.seeAllButtonText}>{copy.seeAllStocks(toSend.length)}</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -261,88 +277,71 @@ export function AccountScreen(props: Props) {
   );
 
   const onWren = people?.onWren ?? [];
+  const personW = (width - 32 - TILE_GAP) / 2;
+  // Each person's newest move (moves come newest first).
+  const latestMove = new Map<string, Move>();
+  for (const m of moves?.items ?? []) if (!latestMove.has(m.phone)) latestMove.set(m.phone, m);
   const notOnWren = people?.notOnWren ?? [];
+  const query = friendQ.trim().toLowerCase();
+  const match = (p: WrenPerson) => !query || p.name.toLowerCase().includes(query);
+  const friends = onWren.filter(match);
+  const invitees = notOnWren.filter(match);
+  const friendColors = stackColors(friends.map((p) => personColor(p.name)));
+  const inviteColors = stackColors(invitees.map(() => quietColor));
+
+  // Friends: one job, send someone a stock. Friends on Wren first, in their
+  // color, with their latest buy; everyone else after as quiet cards, where
+  // the first send is the invite. Moves live on the cards and in profiles.
   const peopleTab = (
     <>
       <View style={styles.hero}>
         <Text style={styles.headline}>{copy.yourPeople}</Text>
-        <Text style={styles.sub}>{copy.peopleCount(onWren.length)}</Text>
+        <Text style={styles.sub}>{copy.friendsSub}</Text>
+        <SearchField value={friendQ} onChange={setFriendQ} placeholder={copy.searchFriends} style={{ marginTop: 18 }} />
       </View>
 
-      {onWren.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.faces}>
-          {onWren.map((p) => (
-            <Pressable key={p.phone} onPress={() => props.onOpenPerson(p.phone, p.name)} style={styles.face}>
-              <Avatar name={p.name} size={72} />
-              <Text style={styles.faceName} numberOfLines={1}>
-                {p.name.split(' ')[0]}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      ) : (
-        <View style={styles.padded}>
-          <EmptyCard>{copy.noPeople}</EmptyCard>
+      {friends.length > 0 && (
+        <View style={[styles.stackWrap, { marginTop: 18 }]}>
+          {friends.map((p, i) => {
+            const last = latestMove.get(p.phone);
+            return (
+              <PersonCard
+                key={p.phone}
+                first={i === 0}
+                colors={friendColors[i]}
+                name={p.name.split(' ')[0]}
+                line={last ? `${copy.boughtShort(last.stockName)} · ${when(last.at)}` : undefined}
+                onPress={() => props.onOpenPerson(p.phone, p.name)}
+                onSend={() => props.onSendTo(p)}
+              />
+            );
+          })}
         </View>
       )}
 
-      {onWren.length > 0 && (
+      {invitees.length > 0 && (
         <View style={styles.section}>
-          <SectionLabel>{copy.moves}</SectionLabel>
-          <View style={{ marginTop: 12 }}>
-            {moves && !moves.sharing ? (
-              <EmptyCard
-                action={
-                  <PillButton dark onPress={props.onSettings} style={{ alignSelf: 'flex-start' }}>
-                    {copy.shareToSeeButton}
-                  </PillButton>
-                }
-              >
-                {copy.shareToSee}
-              </EmptyCard>
-            ) : moves?.items.length ? (
-              <View style={{ gap: 14 }}>
-                {moves.items.map((m) => (
-                  <Pressable
-                    key={`${m.phone}-${m.at}`}
-                    onPress={() => props.onOpenPerson(m.phone, m.name)}
-                    style={styles.moveRow}
-                  >
-                    <Avatar name={m.name || '?'} size={40} />
-                    <View style={{ flexShrink: 1 }}>
-                      <BubbleCard from="them">
-                        {copy.moveBought(m.name.split(' ')[0] || copy.someone, m.stockName)}
-                      </BubbleCard>
-                      <View style={styles.moveMeta}>
-                        <Change value={market.get(m.symbol)?.changePct} />
-                        <Text style={styles.whenText}>{when(m.at)}</Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <EmptyCard>{copy.noMoves}</EmptyCard>
-            )}
-          </View>
-        </View>
-      )}
-
-      {notOnWren.length > 0 && (
-        <View style={styles.section}>
-          <SectionLabel>{copy.notOnWren}</SectionLabel>
+          <SectionLabel>{copy.inviteLabel}</SectionLabel>
           <Text style={[styles.caption, { marginTop: 4 }]}>{copy.notOnWrenNote}</Text>
-          <View style={{ marginTop: 8 }}>
-            {notOnWren.map((p, i) => (
-              <View key={p.phone} style={[styles.inviteRow, rowLine(i, notOnWren.length)]}>
-                <Avatar name={p.name} size={48} />
-                <Text style={[styles.body, { flex: 1 }]} numberOfLines={1}>
-                  {p.name}
-                </Text>
-                <PillButton onPress={() => props.onSendTo(p)}>{copy.send}</PillButton>
-              </View>
+          <View style={{ marginTop: 12, marginHorizontal: 16 - spacing.screenPad }}>
+            {invitees.map((p, i) => (
+              <PersonCard
+                key={p.phone}
+                first={i === 0}
+                colors={inviteColors[i]}
+                quiet
+                name={p.name}
+                onPress={() => props.onSendTo(p)}
+                onSend={() => props.onSendTo(p)}
+              />
             ))}
           </View>
+        </View>
+      )}
+
+      {people && !friends.length && !invitees.length && (
+        <View style={styles.padded}>
+          <EmptyCard>{query ? copy.noFriendMatch(friendQ.trim()) : copy.noPeople}</EmptyCard>
         </View>
       )}
     </>
@@ -380,9 +379,15 @@ export function AccountScreen(props: Props) {
         {tab === 'account' ? accountTab : tab === 'people' ? peopleTab : activityTab}
       </ScrollView>
       <View style={[styles.pinned, { paddingBottom: Math.max(insets.bottom, spacing.homeIndicator) }]}>
-        {channel !== undefined && (
-          <Pressable onPress={props.onConnect} hitSlop={8}>
-            <Text style={styles.channel}>{channel ? copy.channelLine(channel) : copy.channelNone}</Text>
+        {/* Only until a channel is on; after that it lives in Settings. */}
+        {channel === null && (
+          <Pressable
+            onPress={props.onConnect}
+            hitSlop={8}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.channelPill, pressed && { opacity: 0.8 }]}
+          >
+            <Text style={styles.channelPillText}>{copy.channelNone}</Text>
           </Pressable>
         )}
         <View style={styles.actions}>
@@ -422,6 +427,12 @@ const styles = StyleSheet.create({
   todayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP },
   stack: { marginTop: 12 },
+  stackWrap: { paddingHorizontal: 16 },
+  personTile: { height: 150, borderRadius: 28, padding: 16, justifyContent: 'space-between' },
+  personFace: { width: 44, height: 44, borderRadius: 22, backgroundColor: color.canvas, alignItems: 'center', justifyContent: 'center' },
+  personInitial: { fontFamily: font.display, fontSize: 20, color: color.ink },
+  personName: { fontFamily: font.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.6 },
+  personLine: { fontFamily: font.uiRegular, fontSize: 13, lineHeight: 18, marginTop: 4, opacity: 0.85 },
   skel: { backgroundColor: color.card, borderRadius: 999 },
   section: { paddingHorizontal: spacing.screenPad, marginTop: 24 },
   stockRow: { minHeight: 72, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -431,6 +442,15 @@ const styles = StyleSheet.create({
   price: { ...type.price, color: color.ink },
   valueCol: { width: 92, alignItems: 'flex-end', gap: 4 },
   seeAll: { ...type.label, color: color.ink },
+  seeAllButton: {
+    marginTop: 12,
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: color.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  seeAllButtonText: { fontFamily: font.bold, fontSize: 17, color: color.ink },
   whenText: { ...type.caption, color: color.textTertiary },
   faces: { paddingHorizontal: spacing.screenPad, gap: 14, marginTop: 24 },
   face: { width: 84, alignItems: 'center', gap: 8 },
@@ -447,5 +467,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   channel: { ...type.caption, color: color.textSecondary, textAlign: 'center' },
+  // Not connected yet: the step that makes Wren work in chats, so make it
+  // look tappable, in Wren's people tint.
+  channelPill: {
+    alignSelf: 'center',
+    height: 36,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: color.wrenTint,
+    justifyContent: 'center',
+  },
+  channelPillText: { fontFamily: font.bold, fontSize: 14, color: color.wrenWing },
   actions: { flexDirection: 'row', gap: 10 },
 });

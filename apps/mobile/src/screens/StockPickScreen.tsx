@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, layout, spacing, stockColor, type } from '../theme';
+import { color, layout, spacing, stackColors, StockColor, stockColor, type } from '../theme';
 import { HeaderBack } from '../components/HeaderBack';
 import { SearchField } from '../components/SearchField';
 import { SectionLabel, WalletCard } from '../components/Market';
@@ -16,14 +16,33 @@ import { usd2 } from '../fees';
 import { ticker } from '../format';
 
 type Props = {
-  purpose: 'send' | 'buy';
+  purpose: 'send' | 'buy' | 'browse';
   onBack: () => void;
   onPick: (stock: Stock) => void;
 };
 
 type Row =
   | { kind: 'label'; key: string; text: string }
-  | { kind: 'stock'; key: string; stock: Stock; first: boolean; owned?: number };
+  | { kind: 'stock'; key: string; stock: Stock; first: boolean; owned?: number; colors?: StockColor };
+
+/** Give each stock row its color, with no two touching cards the same. */
+function withColors(rows: Row[]): Row[] {
+  const out: Row[] = [];
+  let run: Extract<Row, { kind: 'stock' }>[] = [];
+  const flush = () => {
+    const cs = stackColors(run.map((r) => stockColor(r.stock.symbol)));
+    run.forEach((r, i) => out.push({ ...r, colors: cs[i] }));
+    run = [];
+  };
+  for (const r of rows) {
+    if (r.kind === 'label') {
+      flush();
+      out.push(r);
+    } else run.push(r);
+  }
+  flush();
+  return out;
+}
 
 export function StockPickScreen({ purpose, onBack, onPick }: Props) {
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -50,7 +69,9 @@ export function StockPickScreen({ purpose, onBack, onPick }: Props) {
       const hits = stocks.filter(
         (s) => s.name.toLowerCase().includes(query) || ticker(s.symbol).toLowerCase().includes(query),
       );
-      return hits.map((s, i) => ({ kind: 'stock', key: s.symbol, stock: s, first: i === 0, owned: owned.get(s.symbol) }));
+      return withColors(
+        hits.map((s, i) => ({ kind: 'stock', key: s.symbol, stock: s, first: i === 0, owned: owned.get(s.symbol) })),
+      );
     }
     const mine = stocks.filter((s) => (owned.get(s.symbol) ?? 0) > 0).sort((a, b) => (owned.get(b.symbol) ?? 0) - (owned.get(a.symbol) ?? 0));
     const rest = stocks.filter((s) => !((owned.get(s.symbol) ?? 0) > 0));
@@ -61,7 +82,7 @@ export function StockPickScreen({ purpose, onBack, onPick }: Props) {
       out.push({ kind: 'label', key: 'l-all', text: copy.allStocks });
     }
     rest.forEach((s, i) => out.push({ kind: 'stock', key: s.symbol, stock: s, first: i === 0 }));
-    return out;
+    return withColors(out);
   }, [q, stocks, owned]);
 
   return (
@@ -77,7 +98,7 @@ export function StockPickScreen({ purpose, onBack, onPick }: Props) {
         windowSize={7}
         ListHeaderComponent={
           <View>
-            <Text style={styles.title}>{purpose === 'send' ? copy.whatSending : copy.whatBuying}</Text>
+            <Text style={styles.title}>{purpose === 'send' ? copy.whatSending : purpose === 'buy' ? copy.whatBuying : copy.allStocks}</Text>
             <SearchField value={q} onChange={setQ} placeholder={copy.searchStocks} style={{ marginTop: 20 }} />
             <View style={{ height: 20 }} />
           </View>
@@ -93,7 +114,7 @@ export function StockPickScreen({ purpose, onBack, onPick }: Props) {
           ) : (
             <WalletCard
               first={item.first}
-              colors={stockColor(item.stock.symbol)}
+              colors={item.colors ?? stockColor(item.stock.symbol)}
               name={item.stock.name}
               tickerText={ticker(item.stock.symbol)}
               value={market.get(item.stock.symbol)?.priceUsd ? usd2(market.get(item.stock.symbol)!.priceUsd!) : ''}
