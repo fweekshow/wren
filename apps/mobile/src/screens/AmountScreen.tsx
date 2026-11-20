@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, layout, spacing, type } from '../theme';
 import { BubbleCard } from '../components/BubbleCard';
 import { BigNumber } from '../components/BigNumber';
-import { StockPicker } from '../components/StockPicker';
+import { ChosenStock } from '../components/Market';
 import { Presets } from '../components/Presets';
 import { applyKey, Keypad } from '../components/Keypad';
 import { Button } from '../components/Button';
@@ -47,15 +47,20 @@ type Props = {
   onAddCash: () => void;
   onBack: () => void;
   onSent: (result: { giftId: string; usd: number; symbol: string }) => void;
+  onChangeStock: () => void;
 };
 
 type Phase = 'edit' | 'posting' | 'waiting' | 'error';
 
 type Method = PayMethod | 'cash';
 
-export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, onSent }: Props) {
+export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, onSent, onChangeStock }: Props) {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [symbol, setSymbol] = useState<string | undefined>(initialSymbol);
+  // Change → the stock picker → back here with the new pick.
+  useEffect(() => {
+    if (initialSymbol) setSymbol(initialSymbol);
+  }, [initialSymbol]);
   const [cash, setCash] = useState<number | null>(null);
   const [short, setShort] = useState<{ cashUsd: number; neededUsd: number } | null>(null);
   const [amount, setAmount] = useState<string>('');
@@ -225,12 +230,14 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
           {copy.amountTo} {person.firstName}
         </Text>
       </View>
-      <StockPicker
-        stocks={stocks}
-        value={symbol}
-        onChange={setSymbol}
-        style={{ marginTop: 6 }}
-      />
+      {symbol ? (
+        <ChosenStock
+          name={stocks.find((s) => s.symbol === symbol)?.name ?? symbol.replace(/c$/, '')}
+          symbol={symbol}
+          onChange={onChangeStock}
+          style={{ marginTop: 10, marginHorizontal: 16 }}
+        />
+      ) : null}
       <Presets value={amount} onChange={(v) => edit(String(v))} style={{ marginTop: 16 }} />
       <View style={styles.keypadWrap}>
         <Keypad keyHeight={50} onKey={(k) => edit((a) => applyKey(a, k))} />

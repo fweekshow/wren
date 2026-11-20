@@ -5,7 +5,7 @@
 import React from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
-import { color, font, radius, StockColor, type } from '../theme';
+import { color, font, radius, StockColor, stockColor, type } from '../theme';
 
 /** Up/down arrow: a filled triangle. */
 export function Arrow({ up, size = 12, fill }: { up: boolean; size?: number; fill: string }) {
@@ -449,4 +449,54 @@ const tileStyles = StyleSheet.create({
   name: { fontFamily: font.bold, fontSize: 17, lineHeight: 20, flexShrink: 1 },
   ticker: { ...type.ticker },
   foot: { marginTop: 8, minHeight: 24, justifyContent: 'center', alignItems: 'flex-start' },
+});
+
+/** The stock you're sending or buying, in its color, with Change. */
+export function ChosenStock({
+  name,
+  symbol,
+  onChange,
+  style,
+}: {
+  name: string;
+  symbol: string;
+  onChange: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const c = stockColor(symbol);
+  return (
+    <View style={[chosenStyles.card, { backgroundColor: c.bg }, style]}>
+      <View style={{ flexShrink: 1 }}>
+        <Text style={[chosenStyles.name, { color: c.ink }]} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={[tileStyles.ticker, { color: c.soft }]}>{symbol.replace(/c$/, '')}</Text>
+      </View>
+      <Pressable
+        onPress={onChange}
+        accessibilityRole="button"
+        accessibilityLabel={`Change stock, now ${name}`}
+        hitSlop={8}
+        style={({ pressed }) => [chosenStyles.change, pressed && { opacity: 0.8 }]}
+      >
+        <Text style={chosenStyles.changeText}>Change</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const chosenStyles = StyleSheet.create({
+  card: {
+    height: 64,
+    borderRadius: 24,
+    paddingLeft: 18,
+    paddingRight: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  name: { fontFamily: font.display, fontSize: 20, lineHeight: 24 },
+  change: { height: 40, paddingHorizontal: 16, borderRadius: 999, backgroundColor: color.canvas, justifyContent: 'center' },
+  changeText: { fontFamily: font.bold, fontSize: 15, color: color.ink },
 });

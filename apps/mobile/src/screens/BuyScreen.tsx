@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, spacing, type } from '../theme';
 import { HeaderBack } from '../components/HeaderBack';
 import { BigNumber } from '../components/BigNumber';
-import { StockPicker } from '../components/StockPicker';
+import { ChosenStock } from '../components/Market';
 import { Presets } from '../components/Presets';
 import { applyKey, Keypad } from '../components/Keypad';
 import { Button } from '../components/Button';
@@ -22,11 +22,15 @@ type Props = {
   onBack: () => void;
   onBought: (r: BuyResult & { stockName: string }) => void;
   onAddCash: () => void;
+  onChangeStock: () => void;
 };
 
-export function BuyScreen({ initialSymbol, onBack, onBought, onAddCash }: Props) {
+export function BuyScreen({ initialSymbol, onBack, onBought, onAddCash, onChangeStock }: Props) {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [symbol, setSymbol] = useState<string | undefined>(initialSymbol);
+  useEffect(() => {
+    if (initialSymbol) setSymbol(initialSymbol);
+  }, [initialSymbol]);
   const [amount, setAmount] = useState('');
   const [cash, setCash] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,7 +87,14 @@ export function BuyScreen({ initialSymbol, onBack, onBought, onAddCash }: Props)
           <BigNumber value={numeric} size="amount" cents={amount.includes('.')} />
         </View>
       </View>
-      <StockPicker stocks={stocks} value={symbol} onChange={setSymbol} style={{ marginTop: 8 }} />
+      {symbol ? (
+        <ChosenStock
+          name={stockName || symbol.replace(/c$/, '')}
+          symbol={symbol}
+          onChange={onChangeStock}
+          style={{ marginTop: 8, marginHorizontal: 16 }}
+        />
+      ) : null}
       <Presets value={amount} onChange={(v) => edit(() => String(v))} style={{ marginTop: 16 }} />
       <View style={styles.keypad}>
         <Keypad keyHeight={50} onKey={(k) => edit((a) => applyKey(a, k))} />

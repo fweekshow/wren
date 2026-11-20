@@ -40,6 +40,7 @@ import { SignInScreen } from './src/screens/SignInScreen';
 import { AllowScreen } from './src/screens/AllowScreen';
 import { ContactsScreen } from './src/screens/ContactsScreen';
 import { AccountScreen, HomeTab } from './src/screens/AccountScreen';
+import { StockPickScreen } from './src/screens/StockPickScreen';
 import { StockScreen } from './src/screens/StockScreen';
 import { BuyScreen } from './src/screens/BuyScreen';
 import { BoughtScreen } from './src/screens/BoughtScreen';
@@ -105,6 +106,9 @@ export default function App() {
 type Screen =
   | { name: 'home' }
   | { name: 'someone'; symbol?: string }
+  // What are you sending/buying? `who` = the person is already known;
+  // `replace` = Change from Amount/Buy: put the pick back on that screen.
+  | { name: 'what'; purpose: 'send' | 'buy'; who?: { name: string; phone: string }; replace?: boolean }
   | { name: 'connect' }
   | { name: 'addCash' }
   | { name: 'stock'; stock: Stock }
@@ -408,7 +412,23 @@ function Shell() {
 
   // Send to someone Wren already knows (People tab, a profile): straight to Amount.
   const sendTo = (who: { name: string; phone: string }, symbol?: string) => {
-    go({ name: 'amount', person: personFrom(who.name, who.phone), phone: who.phone, symbol });
+    if (symbol) go({ name: 'amount', person: personFrom(who.name, who.phone), phone: who.phone, symbol });
+    else go({ name: 'what', purpose: 'send', who });
+  };
+
+  const pickStock = (w: Extract<Screen, { name: 'what' }>, symbol: string) => {
+    if (w.replace) {
+      // Pop the picker and set the stock on the screen under it.
+      setStack((st) => {
+        const below = st.slice(0, -1);
+        const top = below[below.length - 1];
+        return top && (top.name === 'amount' || top.name === 'buy')
+          ? [...below.slice(0, -1), { ...top, symbol }]
+          : below;
+      });
+    } else if (w.purpose === 'buy') go({ name: 'buy', symbol });
+    else if (w.who) go({ name: 'amount', person: personFrom(w.who.name, w.who.phone), phone: w.who.phone, symbol });
+    else go({ name: 'someone', symbol });
   };
 
   return (
@@ -417,8 +437,8 @@ function Shell() {
         <AccountScreen
           tab={homeTab}
           onTab={setHomeTab}
-          onSend={() => go({ name: 'someone' })}
-          onBuy={() => go({ name: 'buy' })}
+          onSend={() => go({ name: 'what', purpose: 'send' })}
+          onBuy={() => go({ name: 'what', purpose: 'buy' })}
           onOpenStock={(stock) => go({ name: 'stock', stock })}
           onSettings={() => go({ name: 'settings' })}
           onActivity={() => go({ name: 'activity' })}
@@ -440,6 +460,7 @@ function Shell() {
           initialSymbol={screen.symbol}
           onBack={back}
           onAddCash={() => go({ name: 'addCash' })}
+          onChangeStock={() => go({ name: 'what', purpose: 'buy', replace: true })}
           onBought={(r) =>
             swap({ name: 'bought', usd: r.usd, symbol: r.symbol, stockName: r.stockName })
           }
@@ -456,7 +477,7 @@ function Shell() {
       {screen.name === 'activity' && (
         <ActivityScreen
           onBack={back}
-          onSend={() => go({ name: 'someone' })}
+          onSend={() => go({ name: 'what', purpose: 'send' })}
           onOpenPerson={(phone, personName) => go({ name: 'profile', phone, personName })}
         />
       )}
@@ -479,6 +500,9 @@ function Shell() {
           }}
         />
       )}
+      {screen.name === 'what' && (
+        <StockPickScreen purpose={screen.purpose} onBack={back} onPick={(st) => pickStock(screen, st.symbol)} />
+      )}
       {screen.name === 'someone' && (
         <SomeoneScreen
           onBack={back}
@@ -499,6 +523,7 @@ function Shell() {
           initialSymbol={screen.symbol}
           onAddCash={() => go({ name: 'addCash' })}
           onBack={back}
+          onChangeStock={() => go({ name: 'what', purpose: 'send', replace: true })}
           onSent={({ giftId, usd, symbol }) => {
             const match = stocks.find((s) => s.symbol === symbol);
             swap({
