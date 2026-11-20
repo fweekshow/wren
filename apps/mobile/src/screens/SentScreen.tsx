@@ -24,6 +24,7 @@ import { getGiftStatus } from '../api';
 type Props = {
   giftId: string;
   personName: string;
+  phone: string; // E.164
   usd: number;
   companyName: string;
   onHome: () => void;
@@ -43,7 +44,16 @@ function holdText(hours: number | null): string {
   return copy.sentHold(hours === 1 ? '1 hour' : `${hours} hours`);
 }
 
-export function SentScreen({ giftId, personName, usd, companyName, onHome }: Props) {
+// +1 numbers read as (555) 010-0100; others keep their country code, spaced.
+function formatPhone(e164: string): string {
+  const d = e164.replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('1')) {
+    return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
+  }
+  return e164.startsWith('+') ? e164.replace(/^(\+\d{1,3})(\d+)$/, '$1 $2') : e164;
+}
+
+export function SentScreen({ giftId, personName, phone, usd, companyName, onHome }: Props) {
   const [delivery, setDelivery] = useState<Delivery>({ kind: 'loading' });
   const [shared, setShared] = useState(false);
 
@@ -98,6 +108,7 @@ export function SentScreen({ giftId, personName, usd, companyName, onHome }: Pro
         <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
           {personName}
         </Text>
+        {phone ? <Text style={styles.phone}>{formatPhone(phone)}</Text> : null}
         <BubbleCard from="you" style={styles.bubble}>
           {`${what}.`}
         </BubbleCard>
@@ -148,6 +159,7 @@ const styles = StyleSheet.create({
     color: color.ink,
     marginTop: 6,
   },
+  phone: { ...type.price, color: color.textSecondary, marginTop: 8 },
   bubble: { marginTop: 36 },
   line: {
     ...type.caption,

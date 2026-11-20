@@ -104,6 +104,7 @@ type Screen =
       name: 'sent';
       giftId: string;
       personName: string;
+      phone: string;
       usd: number;
       companyName: string;
     };
@@ -393,6 +394,7 @@ function Shell() {
               name: 'sent',
               giftId,
               personName: screen.person.firstName,
+              phone: screen.phone,
               usd,
               companyName: match?.name ?? symbol,
             });
@@ -414,6 +416,7 @@ function Shell() {
         <SentScreen
           giftId={screen.giftId}
           personName={screen.personName}
+          phone={screen.phone}
           usd={screen.usd}
           companyName={screen.companyName}
           onHome={() => setScreen({ name: 'home' })}
