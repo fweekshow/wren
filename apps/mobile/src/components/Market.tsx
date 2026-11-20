@@ -33,21 +33,23 @@ export function Change({
   if (value == null || !Number.isFinite(value)) return null;
   const up = value >= 0;
   const pct = `${Math.abs(value).toFixed(2)}%`;
-  const label = `${up ? 'Up' : 'Down'} ${pct}`;
+  // Rounds to 0.00%: no move, so no arrow and no up/down color.
+  const flat = pct === '0.00%';
+  const label = flat ? `Flat ${pct}` : `${up ? 'Up' : 'Down'} ${pct}`;
   if (on) {
     return (
       <View style={[styles.changeBare, style]} accessibilityLabel={label}>
-        <Arrow up={up} fill={on} />
+        {!flat && <Arrow up={up} fill={on} />}
         <Text style={[styles.changeText, { color: on }]}>{pct}</Text>
       </View>
     );
   }
   return (
     <View
-      style={[styles.change, { backgroundColor: up ? color.moveUp : color.moveDown }, style]}
+      style={[styles.change, { backgroundColor: flat ? color.card : up ? color.moveUp : color.moveDown }, style]}
       accessibilityLabel={label}
     >
-      <Arrow up={up} fill={color.ink} />
+      {!flat && <Arrow up={up} fill={color.ink} />}
       <Text style={styles.changeText}>{pct}</Text>
     </View>
   );
