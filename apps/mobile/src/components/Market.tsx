@@ -340,7 +340,12 @@ export function StockTile({
       style={({ pressed }) => [tileStyles.tile, { width, backgroundColor: colors.bg }, pressed && tileStyles.pressed]}
     >
       <View style={tileStyles.top}>
-        <Text style={[tileStyles.name, { color: colors.ink }]} numberOfLines={1}>
+        <Text
+          style={[tileStyles.name, { color: colors.ink }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
           {name}
         </Text>
         <Text style={[tileStyles.ticker, { color: colors.soft }]}>{tickerText}</Text>
