@@ -42,7 +42,13 @@ import { color } from './src/theme';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { AllowScreen } from './src/screens/AllowScreen';
 import { ContactsScreen } from './src/screens/ContactsScreen';
-import { HomeScreen } from './src/screens/HomeScreen';
+import { AccountScreen } from './src/screens/AccountScreen';
+import { StockScreen } from './src/screens/StockScreen';
+import { BuyScreen } from './src/screens/BuyScreen';
+import { BoughtScreen } from './src/screens/BoughtScreen';
+import { ActivityScreen } from './src/screens/ActivityScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { SomeoneScreen } from './src/screens/SomeoneScreen';
 import { AmountScreen } from './src/screens/AmountScreen';
 import { SentScreen } from './src/screens/SentScreen';
@@ -99,11 +105,17 @@ export default function App() {
 
 type Screen =
   | { name: 'home' }
-  | { name: 'someone' }
+  | { name: 'someone'; symbol?: string }
   | { name: 'connect' }
   | { name: 'addCash' }
-  | { name: 'country'; person: Person }
-  | { name: 'amount'; person: Person; phone: string }
+  | { name: 'stock'; stock: Stock }
+  | { name: 'buy'; symbol?: string }
+  | { name: 'bought'; usd: number; symbol: string; stockName: string; askPrivacy: boolean }
+  | { name: 'activity' }
+  | { name: 'profile'; phone: string; personName?: string }
+  | { name: 'settings' }
+  | { name: 'country'; person: Person; symbol?: string }
+  | { name: 'amount'; person: Person; phone: string; symbol?: string }
   | { name: 'claim'; giftId: string }
   | {
       name: 'sent';
@@ -118,7 +130,15 @@ function Shell() {
   const privy = usePrivy();
   const wallets = useEmbeddedEthereumWallet();
   const signers = useSigners();
-  const [screen, setScreen] = useState<Screen>({ name: 'home' });
+  // A small back stack: go() pushes, back() pops, home() resets.
+  const [stack, setStack] = useState<Screen[]>([{ name: 'home' }]);
+  const screen = stack[stack.length - 1];
+  const go = useCallback((s: Screen) => setStack((st) => [...st, s]), []);
+  const back = useCallback(() => setStack((st) => (st.length > 1 ? st.slice(0, -1) : st)), []);
+  const home = useCallback(() => setStack([{ name: 'home' }]), []);
+  // Replace the top screen (Amount → Sent, Buy → It's yours) so Back skips it.
+  const swap = useCallback((s: Screen) => setStack((st) => [...st.slice(0, -1), s]), []);
+  const [homeTab, setHomeTab] = useState<'account' | 'people'>('account');
   const [recentIds, setRecentIds] = useState<string[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [allowed, setAllowed] = useState(false);
@@ -266,7 +286,7 @@ function Shell() {
           : path.startsWith('g/')
             ? path.slice(2)
             : '';
-      if (giftId) setScreen({ name: 'claim', giftId: giftId.split('/')[0] });
+      if (giftId) setStack((st) => [...st, { name: 'claim', giftId: giftId.split('/')[0] }]);
     };
     void Linking.getInitialURL().then((url) => {
       if (url) open(url);
@@ -285,12 +305,12 @@ function Shell() {
         '';
       const e164 = applyDialCode(raw, c.dial);
       if (!e164) {
-        setScreen({ name: 'someone' });
+        back();
         return;
       }
-      setScreen({ name: 'amount', person, phone: e164 });
+      swap({ name: 'amount', person, phone: e164, symbol: screen.symbol });
     },
-    [screen],
+    [screen, back, swap],
   );
 
   if (!signedIn && (screen.name !== 'claim' || askSignIn)) {
@@ -356,36 +376,101 @@ function Shell() {
     );
   }
 
-  const pickPerson = (p: Person) => {
+  const pickPerson = (p: Person, symbol?: string) => {
     setRecentIds((ids) => [p.id, ...ids.filter((id) => id !== p.id)].slice(0, 6));
     const best = p.bestPhone;
     if (best?.e164) {
-      setScreen({ name: 'amount', person: p, phone: best.e164 });
+      swap({ name: 'amount', person: p, phone: best.e164, symbol });
     } else {
       // A number with no + does not open Amount. Ask which country.
-      setScreen({ name: 'country', person: p });
+      swap({ name: 'country', person: p, symbol });
     }
+  };
+
+  // Send to someone Wren already knows (People tab, a profile): straight to Amount.
+  const sendTo = (who: { name: string; phone: string }, symbol?: string) => {
+    go({ name: 'amount', person: personFrom(who.name, who.phone), phone: who.phone, symbol });
   };
 
   return (
     <>
       {screen.name === 'home' && (
-        <HomeScreen
-          onSend={() => setScreen({ name: 'someone' })}
-          onConnect={() => setScreen({ name: 'connect' })}
-          onAddCash={() => setScreen({ name: 'addCash' })}
+        <AccountScreen
+          tab={homeTab}
+          onTab={setHomeTab}
+          onSend={() => go({ name: 'someone' })}
+          onBuy={() => go({ name: 'buy' })}
+          onOpenStock={(stock) => go({ name: 'stock', stock })}
+          onSettings={() => go({ name: 'settings' })}
+          onActivity={() => go({ name: 'activity' })}
+          onConnect={() => go({ name: 'connect' })}
+          onOpenPerson={(phone) => go({ name: 'profile', phone })}
+          onSendTo={(p) => sendTo(p)}
+        />
+      )}
+      {screen.name === 'stock' && (
+        <StockScreen
+          stock={screen.stock}
+          onBack={back}
+          onBuy={() => go({ name: 'buy', symbol: screen.stock.symbol })}
+          onSend={() => go({ name: 'someone', symbol: screen.stock.symbol })}
+        />
+      )}
+      {screen.name === 'buy' && (
+        <BuyScreen
+          initialSymbol={screen.symbol}
+          onBack={back}
+          onAddCash={() => go({ name: 'addCash' })}
+          onBought={(r) =>
+            swap({ name: 'bought', usd: r.usd, symbol: r.symbol, stockName: r.stockName, askPrivacy: r.askPrivacy })
+          }
+        />
+      )}
+      {screen.name === 'bought' && (
+        <BoughtScreen
+          usd={screen.usd}
+          stockName={screen.stockName}
+          askPrivacy={screen.askPrivacy}
+          onHome={home}
+          onSend={() => swap({ name: 'someone', symbol: screen.symbol })}
+        />
+      )}
+      {screen.name === 'activity' && (
+        <ActivityScreen
+          onBack={back}
+          onSend={() => go({ name: 'someone' })}
+          onOpenPerson={(phone) => go({ name: 'profile', phone })}
+        />
+      )}
+      {screen.name === 'profile' && (
+        <ProfileScreen
+          phone={screen.phone}
+          fallbackName={screen.personName}
+          onBack={back}
+          onSend={(p) => sendTo(p)}
+        />
+      )}
+      {screen.name === 'settings' && (
+        <SettingsScreen
+          onBack={back}
+          onConnect={() => go({ name: 'connect' })}
+          onAddCash={() => go({ name: 'addCash' })}
+          onSignOut={() => {
+            home();
+            void privy.logout();
+          }}
         />
       )}
       {screen.name === 'someone' && (
         <SomeoneScreen
-          onBack={() => setScreen({ name: 'home' })}
-          onPick={pickPerson}
+          onBack={back}
+          onPick={(p) => pickPerson(p, screen.symbol)}
           recentIds={recentIds}
         />
       )}
       {screen.name === 'country' && (
         <CountryPickerScreen
-          onBack={() => setScreen({ name: 'someone' })}
+          onBack={back}
           onPick={pickCountry}
         />
       )}
@@ -393,10 +478,12 @@ function Shell() {
         <AmountScreen
           person={screen.person}
           phone={screen.phone}
-          onBack={() => setScreen({ name: 'someone' })}
+          initialSymbol={screen.symbol}
+          onAddCash={() => go({ name: 'addCash' })}
+          onBack={back}
           onSent={({ giftId, usd, symbol }) => {
             const match = stocks.find((s) => s.symbol === symbol);
-            setScreen({
+            swap({
               name: 'sent',
               giftId,
               personName: screen.person.firstName,
@@ -410,19 +497,19 @@ function Shell() {
       {screen.name === 'addCash' && (
         <AddCashScreen
           address={wallets.wallets[0]?.address ?? null}
-          onBack={() => setScreen({ name: 'home' })}
-          onAdded={() => setScreen({ name: 'home' })}
+          onBack={back}
+          onAdded={back}
         />
       )}
       {screen.name === 'connect' && (
-        <ConnectScreen mode="settings" onBack={() => setScreen({ name: 'home' })} />
+        <ConnectScreen mode="settings" onBack={back} />
       )}
       {screen.name === 'claim' && (
         <ClaimScreen
           giftId={screen.giftId}
           signedIn={signedIn}
           onSignIn={() => setAskSignIn(true)}
-          onHome={() => setScreen({ name: 'home' })}
+          onHome={home}
         />
       )}
       {screen.name === 'sent' && (
@@ -432,7 +519,7 @@ function Shell() {
           phone={screen.phone}
           usd={screen.usd}
           companyName={screen.companyName}
-          onHome={() => setScreen({ name: 'home' })}
+          onHome={home}
         />
       )}
     </>
@@ -442,6 +529,22 @@ function Shell() {
 const styles = StyleSheet.create({
   boot: { flex: 1, backgroundColor: color.canvas },
 });
+
+function personFrom(name: string, phone: string): Person {
+  const [firstName, ...rest] = name.trim().split(/\s+/);
+  const lastName = rest.join(' ');
+  const option = { raw: phone, e164: phone };
+  return {
+    id: `wren:${phone}`,
+    firstName: firstName || name,
+    lastName,
+    phones: [option],
+    bestPhone: option,
+    firstLower: (firstName || name).toLowerCase(),
+    lastLower: lastName.toLowerCase(),
+    hasE164: true,
+  };
+}
 
 async function registerPush(): Promise<void> {
   try {

@@ -15,6 +15,7 @@ import {
   VISIBILITIES,
   type Visibility,
 } from "@/people/wrenPeople.js";
+import { listActivity } from "@/people/wrenActivity.js";
 import { wrenSendCharge } from "@/discovery/stocks/giftStock.service.js";
 import {
   startPriceHistoryJob,
@@ -349,6 +350,19 @@ router.post("/api/app/people/:phone/notify", json, async (req: Request, res: Res
   } catch (err) {
     logger.error({ err }, "POST /api/app/people/:phone/notify");
     res.status(500).json({ error: "That didn't save." });
+  }
+});
+
+// Activity: the stocks you sent and where each one is. Only you see this.
+router.get("/api/app/activity/sends", async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ items: await listActivity(user) });
+  } catch (err) {
+    logger.error({ err }, "GET /api/app/activity/sends");
+    res.status(500).json({ error: "Couldn't load." });
   }
 });
 

@@ -216,6 +216,7 @@ export type GiftRequest = {
   symbol: string;
   usd: number;
   recipient: { name: string; phone: string };
+  payFrom?: PayFrom;
 };
 
 export type GiftResponse = {
@@ -288,8 +289,10 @@ export type SendQuote = {
   firstSend: boolean;
 };
 
-export function getSendQuote(usd: number): Promise<SendQuote> {
-  return request<SendQuote>(`/api/app/send-quote?usd=${encodeURIComponent(String(usd))}`);
+export type PayFrom = 'card' | 'cash';
+
+export function getSendQuote(usd: number, payFrom: PayFrom = 'card'): Promise<SendQuote> {
+  return request<SendQuote>('/api/app/send-quote', { query: { usd, payFrom } });
 }
 
 export type PayMethod = 'apple' | 'card' | 'bank';
@@ -306,6 +309,7 @@ export async function sendGift(req: GiftRequest): Promise<{ giftId: string; char
       symbol: req.symbol,
       usd: String(req.usd),
       recipient: { name: req.recipient.name, phone: req.recipient.phone },
+      payFrom: req.payFrom ?? 'card',
     },
   });
   if (!raw.giftId || typeof raw.chargeUsd !== 'number') {
@@ -393,4 +397,131 @@ export async function getGiftStatus(giftId: string): Promise<GiftStatus> {
     stockLabel: raw.stockLabel ?? null,
     holdHours: typeof raw.holdHours === 'number' ? raw.holdHours : null,
   };
+}
+
+// ---------- Not enough cash ----------
+// Buy and send-from-cash answer 402 { error: "not_enough_cash", cashUsd, neededUsd }.
+
+export function notEnoughCash(err: unknown): { cashUsd: number; neededUsd: number } | null {
+  if (!(err instanceof ApiError) || err.status !== 402) return null;
+  const b = (err.body ?? {}) as { cashUsd?: number; neededUsd?: number };
+  return { cashUsd: Number(b.cashUsd ?? 0), neededUsd: Number(b.neededUsd ?? 0) };
+}
+
+// ---------- Market ----------
+// GET /api/app/market: price, today's change and a sparkline per stock.
+
+export type MarketItem = {
+  symbol: string;
+  name: string;
+  priceUsd: number | null;
+  changePct: number | null;
+  spark: number[];
+};
+
+export async function getMarket(): Promise<MarketItem[]> {
+  const raw = await request<{ items?: MarketItem[] }>('/api/app/market', { auth: false });
+  return raw.items ?? [];
+}
+
+export type Range = '1D' | '1W' | '1M' | '1Y';
+
+export type History = {
+  priceUsd: number | null;
+  changePct: number | null;
+  points: [number, number][];
+};
+
+export function getHistory(symbol: string, range: Range): Promise<History> {
+  return request<History>(`/api/app/stocks/${encodeURIComponent(symbol)}/history`, {
+    auth: false,
+    query: { range },
+  });
+}
+
+// ---------- Buy ----------
+
+export type BuyResult = {
+  txHash: string;
+  symbol: string;
+  usd: number;
+  amountLabel: string;
+  shares: string;
+  askPrivacy: boolean;
+};
+
+export function buyStock(symbol: string, usd: number): Promise<BuyResult> {
+  return request<BuyResult>('/api/app/buy', { method: 'POST', json: { symbol, usd } });
+}
+
+// ---------- People, moves, privacy ----------
+
+export type WrenPerson = { name: string; phone: string };
+
+export function getPeople(): Promise<{ onWren: WrenPerson[]; notOnWren: WrenPerson[] }> {
+  return request('/api/app/people');
+}
+
+export type Move = {
+  name: string;
+  phone: string;
+  kind: 'bought';
+  symbol: string;
+  stockName: string;
+  at: string;
+};
+
+export function getMoves(): Promise<{ sharing: boolean; items: Move[] }> {
+  return request('/api/app/moves');
+}
+
+export type Profile = {
+  name: string | null;
+  phone: string;
+  hasWren: boolean;
+  canSeeMoves: boolean;
+  holdings: { symbol: string; name: string; pct: number }[];
+  between: { from: 'you' | 'them'; symbol: string; usd: number | null; at: string }[];
+  notify: boolean;
+};
+
+export function getProfile(phone: string): Promise<Profile> {
+  return request(`/api/app/people/${encodeURIComponent(phone)}`);
+}
+
+export function setNotify(phone: string, notify: boolean): Promise<void> {
+  return request(`/api/app/people/${encodeURIComponent(phone)}/notify`, {
+    method: 'POST',
+    json: { notify },
+  });
+}
+
+export type Visibility = 'only_me' | 'your_people' | 'everyone';
+
+export function getPrivacy(): Promise<{ visibility: Visibility; chosen: boolean }> {
+  return request('/api/app/privacy');
+}
+
+export function setPrivacy(visibility: Visibility): Promise<void> {
+  return request('/api/app/privacy', { method: 'POST', json: { visibility } });
+}
+
+// ---------- Activity ----------
+
+export type SendState = 'sending' | 'in_account' | 'waiting' | 'returned' | 'failed';
+
+export type ActivityItem = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  symbol: string;
+  stockName: string;
+  usd: number;
+  state: SendState;
+  at: string;
+};
+
+export async function getActivity(): Promise<ActivityItem[]> {
+  const raw = await request<{ items?: ActivityItem[] }>('/api/app/activity/sends');
+  return raw.items ?? [];
 }

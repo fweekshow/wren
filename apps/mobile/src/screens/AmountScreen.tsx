@@ -1,8 +1,9 @@
 // Amount: the amount as your blue bubble ("To Maya" under it, like a sent
 // text), then stock pills (scrolling), presets, keypad.
-// Apple Pay only — no card pill. On Continue we post once and hand off to
-// Safari via Linking.openURL. If the request fails, we restore Continue and
-// say "That didn't go through."
+// Pay from cash (in your Wren account, no card cost) or Apple Pay / card.
+// Cash is picked first when you have some. Not enough cash → "You have $20
+// in cash. Add $30, or pay by card." with Add cash. If the request fails, we
+// restore Pay and say "That didn't go through."
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -24,8 +25,10 @@ import { Button } from '../components/Button';
 import { HeaderBack } from '../components/HeaderBack';
 import {
   getGiftStatus,
+  getPortfolio,
   getSendQuote,
   getStocks,
+  notEnoughCash,
   sendGift,
   startPay,
   Stock,
@@ -40,20 +43,26 @@ import type { Person } from '../contacts';
 type Props = {
   person: Person;
   phone: string; // E.164
+  initialSymbol?: string;
+  onAddCash: () => void;
   onBack: () => void;
   onSent: (result: { giftId: string; usd: number; symbol: string }) => void;
 };
 
 type Phase = 'edit' | 'posting' | 'waiting' | 'error';
 
-export function AmountScreen({ person, phone, onBack, onSent }: Props) {
+type Method = PayMethod | 'cash';
+
+export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, onSent }: Props) {
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [symbol, setSymbol] = useState<string | undefined>(undefined);
+  const [symbol, setSymbol] = useState<string | undefined>(initialSymbol);
+  const [cash, setCash] = useState<number | null>(null);
+  const [short, setShort] = useState<{ cashUsd: number; neededUsd: number } | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [phase, setPhase] = useState<Phase>('edit');
   const [error, setError] = useState<string | null>(null);
   const [chargeUsd, setChargeUsd] = useState<number | null>(null);
-  const [payMethod, setPayMethod] = useState<PayMethod>('apple');
+  const [payMethod, setPayMethod] = useState<Method>('apple');
   const { width } = useWindowDimensions();
   const bubbleWidth = width - spacing.screenPad * 2;
 
@@ -65,6 +74,10 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
         if (cancelled) return;
         setStocks(list);
         if (!symbol && list.length) setSymbol(list[0].symbol);
+        const p = await getPortfolio(list).catch(() => null);
+        if (cancelled || !p) return;
+        setCash(p.cash);
+        if (p.cash >= 1) setPayMethod('cash');
       } catch {
         // Leave the picker empty; Continue stays disabled until we have a symbol.
       }
@@ -87,7 +100,7 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
     }
     let alive = true;
     const t = setTimeout(() => {
-      getSendQuote(numeric)
+      getSendQuote(numeric, payMethod === 'cash' ? 'cash' : 'card')
         .then((q) => {
           if (alive) setQuote(q);
         })
@@ -99,7 +112,7 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
       alive = false;
       clearTimeout(t);
     };
-  }, [numeric]);
+  }, [numeric, payMethod]);
   const canContinue = numeric > 0 && !!symbol && phase === 'edit';
 
   // Poll /api/muse/sends/:id after the user heads to Safari. When status flips
@@ -158,17 +171,25 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
     setError(null);
     track('buy_started', { method: payMethod, symbol });
     try {
-      await startPay(payMethod, numeric);
+      const fromCash = payMethod === 'cash';
+      if (!fromCash) await startPay(payMethod, numeric);
       const gift = await sendGift({
         symbol,
         usd: numeric,
         recipient: { name: person.firstName, phone },
+        payFrom: fromCash ? 'cash' : 'card',
       });
       track('buy_succeeded', { giftId: gift.giftId });
       setChargeUsd(gift.chargeUsd);
       setPhase('waiting');
       startPolling(gift.giftId, numeric, symbol);
-    } catch {
+    } catch (err) {
+      const s = notEnoughCash(err);
+      if (s) {
+        setShort(s);
+        setPhase('edit');
+        return;
+      }
       track('buy_failed', { symbol });
       setError(copy.didntGo);
       setPhase('error');
@@ -177,6 +198,7 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
 
   // Restore Continue after an error on next edit.
   const edit = (next: string | ((s: string) => string)) => {
+    setShort(null);
     if (phase === 'error') {
       setPhase('edit');
       setError(null);
@@ -218,31 +240,51 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
           <Text style={styles.error}>{error}</Text>
         ) : (
           <View style={styles.methods}>
-            {(['apple', 'card', 'bank'] as PayMethod[]).map((method) => (
+            {((cash ?? 0) > 0 ? ['cash', 'apple', 'card'] : ['apple', 'card', 'bank']).map((m) => {
+              const method = m as Method;
+              return (
               <Pressable
                 key={method}
-                onPress={() => setPayMethod(method)}
+                onPress={() => {
+                  setShort(null);
+                  setPayMethod(method);
+                }}
                 style={[styles.method, payMethod === method && styles.methodOn]}
               >
                 <Text style={[styles.methodText, payMethod === method && styles.methodTextOn]}>
-                  {method === 'apple' ? copy.applePay : method === 'card' ? copy.card : copy.bank}
+                  {method === 'cash'
+                    ? `${copy.cash} ${usd2(cash ?? 0)}`
+                    : method === 'apple'
+                      ? copy.applePay
+                      : method === 'card'
+                        ? copy.card
+                        : copy.bank}
                 </Text>
               </Pressable>
-            ))}
+              );
+            })}
           </View>
         )}
-        {numeric > 0 && quote && quote.stockUsd === Math.round(numeric * 100) / 100 && (
+        {short ? (
+          <Text style={styles.total}>
+            {copy.notEnoughCashSend(usd2(short.cashUsd), usd2(Math.max(short.neededUsd - short.cashUsd, 0.01)))}
+          </Text>
+        ) : numeric > 0 && quote && quote.stockUsd === Math.round(numeric * 100) / 100 && (
           // The price before Pay, never a surprise after.
           <Text style={styles.total}>
             {[
               `${copy.total} ${usd2(chargeUsd ?? quote.totalUsd)}`,
               quote.firstSend ? copy.firstSendFree : copy.toSend(usd2(quote.feeUsd)),
               quote.cardUsd > 0 ? copy.cardCost(usd2(quote.cardUsd)) : null,
+              payMethod === 'cash' ? copy.fromYourCash : null,
             ]
               .filter(Boolean)
               .join(' · ')}
           </Text>
         )}
+        {short ? (
+          <Button onPress={onAddCash}>{copy.addCash}</Button>
+        ) : (
         <Button
           disabled={phase === 'posting' || phase === 'waiting' || (phase === 'edit' && !(numeric > 0 && !!symbol))}
           loading={phase === 'posting'}
@@ -250,6 +292,7 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
         >
         {phase === 'error' ? copy.retry : primaryLabel}
         </Button>
+        )}
       </View>
     </SafeAreaView>
   );
