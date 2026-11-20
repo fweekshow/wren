@@ -1,0 +1,195 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1782819460712,
+      "tag": "0000_faithful_apocalypse",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782819460713,
+      "tag": "0001_live_position_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782819460714,
+      "tag": "0002_strategy_trade_leverage",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1752083400000,
+      "tag": "0003_conversation_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783699200000,
+      "tag": "0004_success_only_contact_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783753924334,
+      "tag": "0005_majestic_paper_doll",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1752249480000,
+      "tag": "0006_basemate_user_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783784160000,
+      "tag": "0007_multitoken_phone_escrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783784160001,
+      "tag": "0008_recipient_notification_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783846813631,
+      "tag": "0009_famous_dazzler",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783854393416,
+      "tag": "0010_boring_warbound",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784001000000,
+      "tag": "0011_embedded_pay_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784340000000,
+      "tag": "0012_identity_wallets_basename",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784340001000,
+      "tag": "0013_wakeful_marauders",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784340002000,
+      "tag": "0014_deferred_recipient_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1784340003000,
+      "tag": "0015_greedy_leper_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784340004000,
+      "tag": "0016_contact_transfer_memos",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784340005000,
+      "tag": "0017_pending_flash_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784340006000,
+      "tag": "0018_pending_pay_flash",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784340007000,
+      "tag": "0019_phone_escrow_claim_expiry",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784340008000,
+      "tag": "0020_investor_funnel",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784340008001,
+      "tag": "0021_phone_escrow_source_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784340008002,
+      "tag": "0022_portfolio_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784340008003,
+      "tag": "0023_alexander_swear_jar",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1757232000000,
+      "tag": "0024_istonks_launch_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1757320000000,
+      "tag": "0025_istonks_fee_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1757406400000,
+      "tag": "0026_sms_consent",
+      "breakpoints": true
+    }
+  ]
+}

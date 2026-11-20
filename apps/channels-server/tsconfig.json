@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../../packages/core/src/*"],
+      "@basemate/shared": ["../../packages/shared/src/index.ts"],
+      "@basemate/bankr-client": ["../../packages/bankr-client/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

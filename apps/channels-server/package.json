@@ -1,0 +1,25 @@
+{
+  "name": "basemate-channels",
+  "version": "2.0.0",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "repl": "bun src/imessage-repl.ts",
+    "start": "node --import tsx --dns-result-order=ipv4first src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "echo 'basemate-channels runs on bun locally, Node 22 in prod'",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@basemate/core": "workspace:*",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.19.11",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Wren",
+    "slug": "wren",
+    "scheme": "wren",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/app-icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.basemate.wren",
+      "infoPlist": {
+        "NSContactsUsageDescription": "So you can pick who to send to."
+      }
+    },
+    "android": {
+      "package": "app.basemate.wren",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/logo.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "So you can pick who to send to."
+        }
+      ],
+      "expo-secure-store",
+      "expo-font",
+      "expo-apple-authentication",
+      "expo-notifications"
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@basemate/bankr-client",
+  "version": "2.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "echo 'bankr-client is source-only'",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@basemate/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

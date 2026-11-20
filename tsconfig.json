@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "apps/mobile" },
+    { "path": "apps/channels-server" },
+    { "path": "packages/core" },
+    { "path": "packages/shared" },
+    { "path": "packages/avantis-client" },
+    { "path": "packages/bankr-client" }
+  ]
+}
