@@ -13,11 +13,14 @@ import { logger } from "@/utils/logger.js";
 
 const router = Router();
 const CAPABILITY_RE = /^[A-Za-z0-9_-]{32}$/;
+const OFFRAMP_PATH = "/api/agent/offramp";
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 30;
 const requestWindows = new Map<string, { count: number; resetAt: number }>();
 
-router.use((req, res, next) => {
+// Scoped to the offramp's own paths: unscoped, this ran on every request
+// through the router and rate-limited unrelated routes (all of /api/app).
+router.use(OFFRAMP_PATH, (req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Pragma", "no-cache");
   const origin = req.headers.origin;
@@ -32,7 +35,7 @@ router.use((req, res, next) => {
   next();
 });
 
-router.use((req, res, next) => {
+router.use(OFFRAMP_PATH, (req, res, next) => {
   const token = readToken(req);
   const key = token || req.ip || "unknown";
   const now = Date.now();
