@@ -21,6 +21,7 @@ export function AllowScreen({ onAllow, busy = false }: Props) {
       <TopBar />
       <View style={styles.stage}>
         <Text style={styles.title}>{copy.allowTitle}</Text>
+        <Text style={styles.body}>{copy.allowBody}</Text>
         <View style={styles.card}>
           {copy.allowSteps.map((line, i) => (
             <View key={line} style={[styles.row, i === 0 && styles.rowFirst]}>
@@ -50,6 +51,7 @@ const styles = StyleSheet.create({
     paddingTop: layout.titleGap,
   },
   title: { ...type.headline, color: color.ink },
+  body: { ...type.bodyRegular, color: color.textSecondary, marginTop: 14 },
   card: {
     marginTop: 32,
     backgroundColor: color.card,

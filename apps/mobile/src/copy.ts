@@ -77,15 +77,17 @@ export const copy = {
   smsOn: 'SMS: on',
   whatsappOn: 'WhatsApp: on',
   linkEmail: 'Link email',
-  // The permission Privy asks for: when YOU tap Send, Wren may carry out that
-  // send from your account and deliver it. You send; Wren delivers.
-  allowTitle: 'Let Wren deliver your sends',
+  // The one-time permission (a Privy signer): when YOU tap Send, Wren carries
+  // that send out from your account. It's also where we say what Wren is:
+  // stocks, sent inside the chats you and your family already use.
+  allowTitle: 'Stocks, right in your chats',
+  allowBody: 'Wren works in iMessage and WhatsApp, where you and your family already talk.',
   allowSteps: [
-    'You pick a stock and who it’s for',
-    'You tap Send',
-    'Wren delivers it to them',
+    'Pick a stock and who it’s for',
+    'Tap Send',
+    'It lands in your chat with them',
   ],
-  allowTrust: 'Wren only delivers what you send. You allow this once.',
+  allowTrust: 'Allow this once and every send is one tap. Wren only moves what you send.',
   allowButton: 'Allow',
   contactsTitle: 'Your people',
   contactsBody: 'So you can pick who to send to.',
