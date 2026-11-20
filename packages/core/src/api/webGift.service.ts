@@ -4,6 +4,7 @@ import { listSpotBuyableOffers } from "@/discovery/doppler/stockCatalog.js";
 import {
   giftChargeUsd,
   giftOnrampUsd,
+  wrenSendCharge,
   giftSpendUsd,
   quoteStockGift,
   type GiftDeliveryChannel,
@@ -48,12 +49,16 @@ export async function createWebStockGiftCheckout(input: {
   memo?: string;
   recipient: { name?: string; phone?: string; contactId?: number };
   saveContact?: boolean;
+  /** "wren": flat $2.99 per send, first send free. Default: Basemate's 1%. */
+  pricing?: "wren";
 }): Promise<{
   status: "pay";
   payUrl: string;
   giftId: string;
   chargeUsd: number;
   amountLabel: string;
+  feeUsd?: number;
+  firstSend?: boolean;
 }> {
   const embedded = await WalletAdapter.getEmbeddedWallet(input.senderId);
   if (!embedded?.address) {
@@ -118,8 +123,17 @@ export async function createWebStockGiftCheckout(input: {
   };
 
   const spendUsd = giftSpendUsd(quote);
-  const walletCharge = giftChargeUsd(spendUsd);
-  const appleChargeUsd = giftOnrampUsd(spendUsd);
+  let walletCharge = giftChargeUsd(spendUsd);
+  let appleChargeUsd = giftOnrampUsd(spendUsd);
+  let wren: { feeUsd: number; firstSend: boolean } | null = null;
+  if (input.pricing === "wren") {
+    const firstSend = (await StockGiftAdapter.countCompletedBySender(input.senderId)) === 0;
+    const charge = wrenSendCharge(spendUsd, { firstSend });
+    intent.feeUsd = charge.feeUsd;
+    walletCharge = { ...walletCharge, feeUsd: charge.feeUsd, ourFeeUsd: charge.feeUsd, usdcNeeded: charge.usdcNeeded, totalUsd: charge.usdcNeeded };
+    appleChargeUsd = charge.totalUsd;
+    wren = { feeUsd: charge.feeUsd, firstSend };
+  }
 
   if (input.saveContact && name && phone) {
     await maybeAutoSaveContact(input.senderId, { name, phone });
@@ -171,5 +185,6 @@ export async function createWebStockGiftCheckout(input: {
     giftId: gift.id,
     chargeUsd: appleChargeUsd,
     amountLabel: quote.amountLabel,
+    ...(wren ?? {}),
   };
 }

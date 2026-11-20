@@ -116,6 +116,29 @@ export function giftChargeUsd(
   };
 }
 
+// ── Wren pricing ─────────────────────────────────────────────────────────────
+// Wren charges a flat $2.99 per send, and the first send is free. Buying for
+// yourself has no Wren fee. The card cost (Coinbase's ~2.5%) is passed through
+// at cost. Basemate keeps the 1% fee above; Wren sends save their fee on the
+// gift intent (intent.feeUsd) so fulfilment never recomputes 1% for them.
+export const WREN_SEND_FEE_USD = 2.99;
+
+export function wrenSendFeeUsd(opts: { firstSend: boolean }): number {
+  return opts.firstSend ? 0 : WREN_SEND_FEE_USD;
+}
+
+/** What a Wren send costs. Card total is never below Coinbase's $2 floor. */
+export function wrenSendCharge(
+  stockUsdIn: number,
+  opts: { firstSend: boolean },
+): { stockUsd: number; feeUsd: number; usdcNeeded: number; cardUsd: number; totalUsd: number } {
+  const stockUsd = roundUsd(Math.max(0, stockUsdIn));
+  const feeUsd = wrenSendFeeUsd(opts);
+  const usdcNeeded = roundUsd(stockUsd + feeUsd);
+  const totalUsd = Math.max(ceilUsd(usdcNeeded / (1 - ONRAMP_GROSS_BPS / 10_000)), ONRAMP_MIN_USD);
+  return { stockUsd, feeUsd, usdcNeeded, cardUsd: roundUsd(totalUsd - usdcNeeded), totalUsd };
+}
+
 /** Apple Pay checkout amount, never below Coinbase's $2 guest-checkout floor. */
 export function giftOnrampUsd(notionalUsd: number): number {
   return Math.max(giftChargeUsd(notionalUsd, { applePay: true }).totalUsd, ONRAMP_MIN_USD);
@@ -454,6 +477,8 @@ export async function buildStockBuyAndTransferCalls(args: {
   walletAddress: string;
   recipientAddress: string;
   memo?: string;
+  /** A fee fixed at checkout (Wren). Defaults to the 1% Basemate fee. */
+  feeUsd?: number;
 }): Promise<{ calls: WalletCall[]; label: string; estimatedShares: string } | null> {
   const buy = await buildStockBuyCalls({
     quote: args.quote,
@@ -462,7 +487,7 @@ export async function buildStockBuyAndTransferCalls(args: {
   if (!buy) return null;
   const quote = clampGiftSharesToSwapOut(args.quote, buy.amountOutMinimum);
   const spendUsd = giftSpendUsd(quote);
-  const feeUsd = ourStockGiftFeeUsd(spendUsd);
+  const feeUsd = args.feeUsd ?? ourStockGiftFeeUsd(spendUsd);
   const transfer = buildStockTransferCalls({
     quote,
     recipientAddress: args.recipientAddress,
@@ -484,6 +509,8 @@ export async function buildStockBuyAndEscrowCalls(args: {
   phone: string;
   contactName: string;
   memo?: string;
+  /** A fee fixed at checkout (Wren). Defaults to the 1% Basemate fee. */
+  feeUsd?: number;
 }): Promise<{
   calls: WalletCall[];
   label: string;
@@ -497,7 +524,7 @@ export async function buildStockBuyAndEscrowCalls(args: {
   if (!buy) return null;
   const quote = clampGiftSharesToSwapOut(args.quote, buy.amountOutMinimum);
   const spendUsd = giftSpendUsd(quote);
-  const feeUsd = ourStockGiftFeeUsd(spendUsd);
+  const feeUsd = args.feeUsd ?? ourStockGiftFeeUsd(spendUsd);
   const escrow = buildStockEscrowCalls({
     quote,
     phone: args.phone,

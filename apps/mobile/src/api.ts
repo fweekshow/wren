@@ -256,6 +256,20 @@ export async function pollConnectCode(
   return { status: raw.status === 'expired' ? 'expired' : 'waiting' };
 }
 
+// What a send costs before Pay: $2.99 to send (free the first time) plus the
+// card cost at what Coinbase charges. GET /api/app/send-quote.
+export type SendQuote = {
+  stockUsd: number;
+  feeUsd: number;
+  cardUsd: number;
+  totalUsd: number;
+  firstSend: boolean;
+};
+
+export function getSendQuote(usd: number): Promise<SendQuote> {
+  return request<SendQuote>(`/api/app/send-quote?usd=${encodeURIComponent(String(usd))}`);
+}
+
 export type PayMethod = 'apple' | 'card' | 'bank';
 
 export async function startPay(method: PayMethod, amount: number): Promise<void> {

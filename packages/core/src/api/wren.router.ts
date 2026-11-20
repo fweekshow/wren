@@ -1,6 +1,7 @@
 import express, { Router, type Request, type Response } from "express";
 
-import { fulfillStockGift } from "@/wallet/stockGift.js";
+import { fulfillStockGift, StockGiftAdapter } from "@/wallet/stockGift.js";
+import { wrenSendCharge } from "@/discovery/stocks/giftStock.service.js";
 import {
   createWebStockGiftCheckout,
   WebGiftError,
@@ -158,6 +159,26 @@ router.post("/api/app/pay", json, async (req, res) => {
   }
 });
 
+// What a send would cost, before Pay: $2.99 to send (free the first time),
+// plus the card cost at what Coinbase charges.
+router.get("/api/app/send-quote", async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  const usd = Number(req.query.usd);
+  if (!Number.isFinite(usd) || usd <= 0) {
+    res.status(400).json({ error: "Enter an amount." });
+    return;
+  }
+  try {
+    const firstSend = (await StockGiftAdapter.countCompletedBySender(user)) === 0;
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ...wrenSendCharge(usd, { firstSend }), firstSend });
+  } catch (err) {
+    logger.error({ err }, "GET /api/app/send-quote");
+    res.status(500).json({ error: "Couldn't price that." });
+  }
+});
+
 router.post("/api/app/stock-gifts/send", json, async (req: Request, res: Response) => {
   const user = authedSender(req, res);
   if (!user) return;
@@ -171,6 +192,7 @@ router.post("/api/app/stock-gifts/send", json, async (req: Request, res: Respons
         name: req.body?.recipient?.name,
         phone: req.body?.recipient?.phone,
       },
+      pricing: "wren",
     });
     void fulfillStockGift(created.giftId).catch((err) => {
       logger.error({ err }, "fulfill stock gift");
@@ -179,6 +201,8 @@ router.post("/api/app/stock-gifts/send", json, async (req: Request, res: Respons
     res.json({
       giftId: created.giftId,
       chargeUsd: created.chargeUsd,
+      feeUsd: created.feeUsd ?? null,
+      firstSend: created.firstSend ?? false,
       status: "buying",
     });
   } catch (err) {

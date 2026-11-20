@@ -47,6 +47,8 @@ export type StockGiftIntent = {
   quotedAt: string;
   maxUsd: number;
   sharePriceUsd?: number;
+  /** Fee fixed at checkout (Wren: $2.99, or 0 on a first send). Absent = 1%. */
+  feeUsd?: number;
 };
 
 export type StockGiftRow = {
@@ -261,6 +263,16 @@ export class StockGiftAdapter {
     );
   }
 
+  /** Sends this sender completed (on-chain). Wren's first send is free. */
+  static async countCompletedBySender(senderId: string): Promise<number> {
+    await ensureTable();
+    const { rows } = await db.query(
+      `SELECT COUNT(*)::int AS n FROM stock_gifts WHERE sender_id = $1 AND gift_tx_hash IS NOT NULL`,
+      [senderId],
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
   static async markFailed(giftId: string): Promise<void> {
     await ensureTable();
     await db.query(
@@ -362,7 +374,8 @@ async function fulfillStockGiftLocked(
 
   let quote: StockGiftQuote = quoted.quote;
   const spendUsd = giftSpendUsd(quote);
-  const ourFeeUsd = ourStockGiftFeeUsd(spendUsd);
+  const ourFeeUsd =
+    typeof intent.feeUsd === "number" && intent.feeUsd >= 0 ? intent.feeUsd : ourStockGiftFeeUsd(spendUsd);
   // Apple Pay gifts must spend the USDC that was just bought for them. Deciding
   // "from holdings" here again let fee payouts that landed mid-checkout get
   // sent instead, leaving the sender's onramp USDC idle in the wallet.
@@ -428,6 +441,7 @@ async function fulfillStockGiftLocked(
           walletAddress: gift.walletAddress,
           recipientAddress: intent.recipient.address,
           memo: intent.memo,
+          feeUsd,
         });
     if (!built) {
       await StockGiftAdapter.releaseForRetry(giftId);
@@ -453,6 +467,7 @@ async function fulfillStockGiftLocked(
           phone: intent.recipient.phone,
           contactName: intent.recipient.name ?? intent.recipient.display,
           memo: intent.memo,
+          feeUsd,
         });
     if (!built) {
       await StockGiftAdapter.releaseForRetry(giftId);

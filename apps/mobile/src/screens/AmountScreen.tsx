@@ -22,10 +22,19 @@ import { Presets } from '../components/Presets';
 import { applyKey, Keypad } from '../components/Keypad';
 import { Button } from '../components/Button';
 import { HeaderBack } from '../components/HeaderBack';
-import { getGiftStatus, getStocks, sendGift, startPay, Stock, type PayMethod } from '../api';
+import {
+  getGiftStatus,
+  getSendQuote,
+  getStocks,
+  sendGift,
+  startPay,
+  Stock,
+  type PayMethod,
+  type SendQuote,
+} from '../api';
 import { copy } from '../copy';
 import { track } from '../observe';
-import { sendTotal, usd2 } from '../fees';
+import { usd2 } from '../fees';
 import type { Person } from '../contacts';
 
 type Props = {
@@ -67,6 +76,30 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
   }, []);
 
   const numeric = useMemo(() => Number(amount) || 0, [amount]);
+
+  // The price before Pay comes from the server, so first-send-free and the
+  // card cost are exactly what will be charged.
+  const [quote, setQuote] = useState<SendQuote | null>(null);
+  useEffect(() => {
+    if (!(numeric > 0)) {
+      setQuote(null);
+      return;
+    }
+    let alive = true;
+    const t = setTimeout(() => {
+      getSendQuote(numeric)
+        .then((q) => {
+          if (alive) setQuote(q);
+        })
+        .catch(() => {
+          if (alive) setQuote(null);
+        });
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [numeric]);
   const canContinue = numeric > 0 && !!symbol && phase === 'edit';
 
   // Poll /api/muse/sends/:id after the user heads to Safari. When status flips
@@ -198,15 +231,16 @@ export function AmountScreen({ person, phone, onBack, onSent }: Props) {
             ))}
           </View>
         )}
-        {numeric > 0 && (
-          // The price before Pay, never a surprise after. Once the server
-          // answers, its own charge wins.
+        {numeric > 0 && quote && quote.stockUsd === Math.round(numeric * 100) / 100 && (
+          // The price before Pay, never a surprise after.
           <Text style={styles.total}>
-            {(() => {
-              const est = sendTotal(numeric);
-              const total = chargeUsd ?? est.totalUsd;
-              return `${copy.total} ${usd2(total)} · ${copy.includes} ${usd2(Math.max(0, total - numeric))} ${copy.inFees}`;
-            })()}
+            {[
+              `${copy.total} ${usd2(chargeUsd ?? quote.totalUsd)}`,
+              quote.firstSend ? copy.firstSendFree : copy.toSend(usd2(quote.feeUsd)),
+              quote.cardUsd > 0 ? copy.cardCost(usd2(quote.cardUsd)) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </Text>
         )}
         <Button
