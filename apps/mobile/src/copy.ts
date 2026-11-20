@@ -1,6 +1,7 @@
 export const copy = {
   welcomeTitle: 'Send anyone a stock.',
   welcomeBody: 'Anywhere in the world.',
+  welcomeChats: 'Right in iMessage and WhatsApp, where your family already talks.',
   welcomeButton: 'Get started',
   phoneNoteText: 'We’ll text you a code.',
   phoneNoteEmail: 'Outside the US and Canada, you sign in with email next.',

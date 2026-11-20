@@ -155,6 +155,7 @@ export function SignInScreen() {
             <View style={styles.body}>
               <Text style={styles.welcomeTitle}>{copy.welcomeTitle}</Text>
               <Text style={styles.sub}>{copy.welcomeBody}</Text>
+              <Text style={[styles.sub, { marginTop: 6 }]}>{copy.welcomeChats}</Text>
             </View>
           </>
         ) : (
