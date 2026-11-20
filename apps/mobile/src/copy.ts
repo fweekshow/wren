@@ -202,10 +202,10 @@ export const copy = {
   // Settings
   whoSees: 'Who sees your moves',
   visOnlyMe: 'Only me',
-  visYourPeople: 'Your contacts',
+  visYourPeople: 'Your friends',
   visNote: {
     only_me: 'No one sees what you buy or send.',
-    your_people: 'Contacts who also saved you see what you buy. Never how much.',
+    your_people: 'Friends who also saved your number see what you buy. Never how much.',
   } as Record<string, string>,
   messagesOn: 'You get messages on',
   iMessage: 'iMessage',
