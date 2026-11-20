@@ -1,6 +1,17 @@
 # Wren Design System
 
-## Update — Nov 2026 (wins over anything below)
+## Update — Wren Color, Nov 21 2026 (wins over anything below)
+Canvas: "Wren Color" (A + C). Adds color and a bolder face; everything else in the Nov 2026 update still holds.
+- **Type:** Bricolage Grotesque replaces Inter Tight. 800 for headlines, the balance and every money number; 700 for names on cards; 400–500 for body. DM Mono replaces Roboto Mono for tickers and percents.
+- **Stock colors:** each stock owns one color on every screen (its wallet card, its tile, its Stock page hero): blue #0050FA, lime #C6F432, coral #FFB199, lilac #B9A7FF, mint #7FE0C2, tangerine #FF8A3D, ink #0A0B0D. Cash is always sun #FFD84D. White text on blue and ink; ink text on the rest. RN: `stockColor(symbol)` and `cashColor` in `theme.ts`.
+- **What you own = wallet stack.** Holdings and Cash are full-width cards (30px corners, 96px tall) stacked like a wallet, each tucked 26px under the one above. RN: `WalletCard`.
+- **What you can send = color tiles.** A two-column grid of solid cards (28px corners) with name, ticker, a small line, the price big and the move. RN: `StockTile`.
+- **Stock page:** name, price and chart sit on a hero card in the stock's color; the chart line takes the card's text color. You hold / You sent are tiles below.
+- **Moves:** never a solid red pill. On white: an arrow and the percent on a lime (up) or coral (down) chip, ink text. On a colored card: just the arrow and percent in the card's text color. RN: `Change` (`on` prop).
+- **Blue ownership changes:** Wren Blue #0050FA is now also a stock color. Base Blue #0000FF stays reserved for the one primary button.
+- **Logos:** still none. Company logos would replace the letter, pending a decision on sourcing and licensing.
+
+## Update — Nov 2026
 - **Bubble cards:** 32px corners with one 8px corner. Yours = Wren Blue #0050FA, white text, tail bottom-right. Theirs = Gray 10, ink text, tail bottom-left. For channel tiles, the amount, message previews and the latest send. Not for lists or settings rows. RN: `components/BubbleCard.tsx`, `components/ChannelTile.tsx`.
 - **Headlines:** one per screen, 52px medium, −4% tracking, 98% leading (`type.headline`). Welcome 64 (`type.headlineXl`), name on Sent 96, amount 104.
 - **No mascot, anywhere.** The round bird is gone from the app, the design system and the canvas. The logo is the only illustration: the app icon, the splash, and once in the app, 44px top-left on Welcome.

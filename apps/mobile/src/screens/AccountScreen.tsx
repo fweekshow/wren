@@ -18,7 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { color, layout, spacing, type } from '../theme';
+import { cashColor, color, layout, spacing, stockColor, type } from '../theme';
 import { usd2 } from '../fees';
 import { copy } from '../copy';
 import { ticker, usdShort, when } from '../format';
@@ -40,7 +40,7 @@ import {
 import { BigNumber } from '../components/BigNumber';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
-import { Card, Change, PillButton, rowLine, SectionLabel, Segmented, StockTile } from '../components/Market';
+import { Card, Change, PillButton, rowLine, SectionLabel, Segmented, StockTile, WalletCard } from '../components/Market';
 import { BubbleCard } from '../components/BubbleCard';
 import { EmptyCard, stateLabel } from './ActivityScreen';
 
@@ -156,6 +156,8 @@ export function AccountScreen(props: Props) {
 
   const tileW = (contentWidth - TILE_GAP) / 2;
   const sorted = [...holdings].sort((a, b) => b.value - a.value);
+  const held = new Set(holdings.map((h) => h.symbol));
+  const toSend = stocks.filter((s) => !held.has(s.symbol));
   const latest = activity?.[0];
 
   const accountTab = (
@@ -191,48 +193,58 @@ export function AccountScreen(props: Props) {
         )}
       </View>
 
-      <View style={styles.section}>
-        {!holdings.length && <SectionLabel>{copy.stocksYouCanSend}</SectionLabel>}
-        <View style={[styles.grid, !holdings.length && { marginTop: 12 }]}>
-          {holdings.length
-            ? sorted.map((h, i) => (
-                <StockTile
-                  key={h.symbol}
-                  width={tileW}
-                  blue={i === 0}
-                  name={h.name}
-                  tickerText={ticker(h.symbol)}
-                  value={usd2(h.value)}
-                  change={market.get(h.symbol)?.changePct}
-                  onPress={() => props.onOpenStock({ symbol: h.symbol, name: h.name })}
-                />
-              ))
-            : stocks.map((s) => {
-                const m = market.get(s.symbol);
-                return (
-                  <StockTile
-                    key={s.symbol}
-                    width={tileW}
-                    name={s.name}
-                    tickerText={ticker(s.symbol)}
-                    value={m?.priceUsd ? usd2(m.priceUsd) : ''}
-                    change={m?.changePct}
-                    onPress={() => props.onOpenStock(s)}
-                  />
-                );
-              })}
-          {portfolio && (holdings.length > 0 || cash > 0) && (
-            <StockTile
-              width={tileW}
+      {(holdings.length > 0 || cash > 0) && (
+        <View style={styles.section}>
+          <SectionLabel>{copy.yourStocks}</SectionLabel>
+          <View style={styles.stack}>
+            {sorted.map((h, i) => (
+              <WalletCard
+                key={h.symbol}
+                first={i === 0}
+                colors={stockColor(h.symbol)}
+                name={h.name}
+                tickerText={ticker(h.symbol)}
+                value={usd2(h.value)}
+                change={market.get(h.symbol)?.changePct}
+                onPress={() => props.onOpenStock({ symbol: h.symbol, name: h.name })}
+              />
+            ))}
+            <WalletCard
+              first={sorted.length === 0}
+              colors={cashColor}
               name={copy.cashTile}
               tickerText={copy.cashTicker}
               value={usd2(cash)}
               footer={cash > 0 ? copy.readyToSend : copy.addCashFirst}
               onPress={cash > 0 ? props.onSend : props.onBuy}
             />
-          )}
+          </View>
         </View>
-      </View>
+      )}
+
+      {toSend.length > 0 && (
+        <View style={styles.section}>
+          <SectionLabel>{copy.stocksYouCanSend}</SectionLabel>
+          <View style={[styles.grid, { marginTop: 12 }]}>
+            {toSend.map((s) => {
+              const m = market.get(s.symbol);
+              return (
+                <StockTile
+                  key={s.symbol}
+                  width={tileW}
+                  colors={stockColor(s.symbol)}
+                  name={s.name}
+                  tickerText={ticker(s.symbol)}
+                  value={m?.priceUsd ? usd2(m.priceUsd) : ''}
+                  change={m?.changePct}
+                  spark={m?.spark}
+                  onPress={() => props.onOpenStock(s)}
+                />
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       <View style={styles.section}>
         <SectionLabel
@@ -409,6 +421,7 @@ const styles = StyleSheet.create({
   failed: { ...type.titleSm, color: color.ink, marginTop: 14 },
   todayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP },
+  stack: { marginTop: 12 },
   skel: { backgroundColor: color.card, borderRadius: 999 },
   section: { paddingHorizontal: spacing.screenPad, marginTop: 24 },
   stockRow: { minHeight: 72, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },

@@ -5,17 +5,50 @@
 import React from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
-import { color, font, radius, type } from '../theme';
+import { color, font, radius, StockColor, type } from '../theme';
 
-export function Change({ value, style }: { value: number | null | undefined; style?: StyleProp<ViewStyle> }) {
+/** Up/down arrow: a filled triangle. */
+export function Arrow({ up, size = 12, fill }: { up: boolean; size?: number; fill: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 14 14">
+      <Path d={up ? 'M7 2 L12 9 H2 Z' : 'M7 12 L2 5 H12 Z'} fill={fill} />
+    </Svg>
+  );
+}
+
+/**
+ * A move (Wren Color): an arrow and the percent. On white it's a chip, lime
+ * up or coral down, ink text. `on` = the text color of a colored card it sits
+ * on: then no chip, just arrow and percent in that color.
+ */
+export function Change({
+  value,
+  on,
+  style,
+}: {
+  value: number | null | undefined;
+  on?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
   if (value == null || !Number.isFinite(value)) return null;
   const up = value >= 0;
+  const pct = `${Math.abs(value).toFixed(2)}%`;
+  const label = `${up ? 'Up' : 'Down'} ${pct}`;
+  if (on) {
+    return (
+      <View style={[styles.changeBare, style]} accessibilityLabel={label}>
+        <Arrow up={up} fill={on} />
+        <Text style={[styles.changeText, { color: on }]}>{pct}</Text>
+      </View>
+    );
+  }
   return (
-    <View style={[styles.change, { backgroundColor: up ? color.moveUp : color.moveDown }, style]}>
-      <Text style={styles.changeText}>
-        {up ? '+' : '−'}
-        {Math.abs(value).toFixed(2)}%
-      </Text>
+    <View
+      style={[styles.change, { backgroundColor: up ? color.moveUp : color.moveDown }, style]}
+      accessibilityLabel={label}
+    >
+      <Arrow up={up} fill={color.ink} />
+      <Text style={styles.changeText}>{pct}</Text>
     </View>
   );
 }
@@ -77,11 +110,18 @@ export function Chart({
   width,
   height = 180,
   onScrub,
+  ink = color.ink,
+  faded = color.hairline,
+  ground = color.canvas,
 }: {
   values: number[];
   width: number;
   height?: number;
   onScrub?: (index: number | null) => void;
+  /** Line color; `faded` = the line past your finger; `ground` = what it sits on. */
+  ink?: string;
+  faded?: string;
+  ground?: string;
 }) {
   const [at, setAt] = React.useState<number | null>(null);
   if (values.length < 2) return <View style={{ width, height }} />;
@@ -121,22 +161,22 @@ export function Chart({
       accessibilityLabel="Price chart. Touch and drag to see past prices."
     >
       <Svg width={width} height={height}>
-        <Line x1={0} x2={width} y1={baseY} y2={baseY} stroke={color.hairline} strokeWidth={1} strokeDasharray="2 4" />
+        <Line x1={0} x2={width} y1={baseY} y2={baseY} stroke={faded} strokeWidth={1} strokeDasharray="2 4" />
         {at == null ? (
           <>
-            <Path d={d} fill="none" stroke={color.ink} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
-            <Circle cx={end.x} cy={end.y} r={10} fill={color.canvas} />
-            <Circle cx={end.x} cy={end.y} r={6} fill={color.ink} />
+            <Path d={d} fill="none" stroke={ink} strokeWidth={4} strokeLinejoin="round" strokeLinecap="round" />
+            <Circle cx={end.x} cy={end.y} r={10} fill={ground} />
+            <Circle cx={end.x} cy={end.y} r={6} fill={ink} />
           </>
         ) : (
           <>
-            <Path d={d} fill="none" stroke={color.hairline} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
+            <Path d={d} fill="none" stroke={faded} strokeWidth={4} strokeLinejoin="round" strokeLinecap="round" />
             {upTo && (
-              <Path d={upTo.d} fill="none" stroke={color.ink} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
+              <Path d={upTo.d} fill="none" stroke={ink} strokeWidth={4} strokeLinejoin="round" strokeLinecap="round" />
             )}
-            <Line x1={px} x2={px} y1={0} y2={height} stroke={color.ink} strokeWidth={1} />
-            <Circle cx={px} cy={py} r={10} fill={color.canvas} />
-            <Circle cx={px} cy={py} r={6} fill={color.ink} />
+            <Line x1={px} x2={px} y1={0} y2={height} stroke={ink} strokeWidth={1.5} />
+            <Circle cx={px} cy={py} r={11} fill={ground} />
+            <Circle cx={px} cy={py} r={7} fill={ink} />
           </>
         )}
       </Svg>
@@ -232,7 +272,17 @@ export const rowLine = (i: number, n: number) =>
   i < n - 1 ? { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.hairline } : null;
 
 const styles = StyleSheet.create({
-  change: { height: 24, paddingHorizontal: 9, borderRadius: radius.pill, justifyContent: 'center', alignSelf: 'flex-start' },
+  change: {
+    height: 28,
+    paddingLeft: 8,
+    paddingRight: 11,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+  },
+  changeBare: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   changeText: { ...type.percent, color: color.ink },
   letter: { alignItems: 'center', justifyContent: 'center' },
   seg: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: radius.pill, backgroundColor: color.card },
@@ -254,16 +304,17 @@ const styles = StyleSheet.create({
 });
 
 /**
- * Wren Bold stock tile (B7): name and ticker on top, the value big at the
- * bottom with today's change. `blue` is the one Wren Blue tile (your biggest
- * holding); the rest are Gray 10. `footer` replaces the change chip (Cash).
+ * Wren Color stock tile: a solid card in the stock's own color, name and
+ * ticker on top, a small line, the value big at the bottom with its move.
+ * `footer` replaces the move (Cash: "Ready to send").
  */
 export function StockTile({
   name,
   tickerText,
   value,
   change,
-  blue = false,
+  colors,
+  spark,
   footer,
   width,
   onPress,
@@ -272,39 +323,40 @@ export function StockTile({
   tickerText: string;
   value: string;
   change?: number | null;
-  blue?: boolean;
+  colors: StockColor;
+  spark?: number[];
   footer?: string;
   width: number;
   onPress?: () => void;
 }) {
-  const ink = blue ? color.textOnAction : color.ink;
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={`${name}, ${value}`}
-      style={({ pressed }) => [
-        tileStyles.tile,
-        { width, backgroundColor: blue ? color.wrenBody : color.card },
-        pressed && tileStyles.pressed,
-      ]}
+      style={({ pressed }) => [tileStyles.tile, { width, backgroundColor: colors.bg }, pressed && tileStyles.pressed]}
     >
       <View style={tileStyles.top}>
-        <Text style={[tileStyles.name, { color: ink }]} numberOfLines={1}>
+        <Text style={[tileStyles.name, { color: colors.ink }]} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={[tileStyles.ticker, { color: blue ? color.wrenTint : color.textSecondary }]}>{tickerText}</Text>
+        <Text style={[tileStyles.ticker, { color: colors.soft }]}>{tickerText}</Text>
       </View>
-      <View>
-        <Text style={[type.tileValue, { color: ink }]} numberOfLines={1} adjustsFontSizeToFit>
+      {spark && spark.length > 1 ? (
+        <View style={{ marginTop: 10 }}>
+          <SparkOn values={spark} width={width - 32} height={26} stroke={colors.ink} />
+        </View>
+      ) : null}
+      <View style={{ marginTop: 'auto' }}>
+        <Text style={[type.tileValue, { color: colors.ink }]} numberOfLines={1} adjustsFontSizeToFit>
           {value}
         </Text>
         <View style={tileStyles.foot}>
           {footer ? (
-            <Text style={[type.caption, { color: blue ? color.wrenTint : color.textSecondary }]}>{footer}</Text>
+            <Text style={[type.caption, { color: colors.ink }]}>{footer}</Text>
           ) : (
-            <Change value={change} />
+            <Change value={change} on={colors.ink} />
           )}
         </View>
       </View>
@@ -312,11 +364,89 @@ export function StockTile({
   );
 }
 
+/** A plain line in a given color (sparklines on colored cards). */
+function SparkOn({ values, width, height, stroke }: { values: number[]; width: number; height: number; stroke: string }) {
+  const { d } = pathFor(values, width, height, 3);
+  return (
+    <Svg width={width} height={height}>
+      <Path d={d} fill="none" stroke={stroke} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/**
+ * Wren Color wallet card (what you own): a full-width card in the stock's
+ * color. Cards stack like a wallet, each tucked 26px under the one above.
+ */
+export function WalletCard({
+  name,
+  tickerText,
+  value,
+  change,
+  colors,
+  footer,
+  first,
+  onPress,
+}: {
+  name: string;
+  tickerText: string;
+  value: string;
+  change?: number | null;
+  colors: StockColor;
+  footer?: string;
+  first: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${name}, ${value}`}
+      style={({ pressed }) => [
+        tileStyles.wallet,
+        { backgroundColor: colors.bg, marginTop: first ? 0 : -WALLET_TUCK },
+        pressed && tileStyles.pressed,
+      ]}
+    >
+      <View style={{ flexShrink: 1 }}>
+        <Text style={[tileStyles.walletName, { color: colors.ink }]} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={[tileStyles.ticker, { color: colors.soft, marginTop: 2 }]}>{tickerText}</Text>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={[tileStyles.walletName, { color: colors.ink }]}>{value}</Text>
+        <View style={{ marginTop: 4 }}>
+          {footer ? (
+            <Text style={[type.caption, { color: colors.ink }]}>{footer}</Text>
+          ) : (
+            <Change value={change} on={colors.ink} />
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+const WALLET_TUCK = 26;
+
 const tileStyles = StyleSheet.create({
-  tile: { borderRadius: radius.tile, padding: 16, minHeight: 132, justifyContent: 'space-between' },
+  tile: { borderRadius: 28, padding: 16, minHeight: 148 },
+  wallet: {
+    height: 96,
+    borderRadius: 30,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  walletName: { fontFamily: font.display, fontSize: 22, lineHeight: 26, letterSpacing: -0.4 },
   pressed: { transform: [{ scale: 0.97 }] },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  name: { fontFamily: font.uiSemiBold, fontSize: 16, lineHeight: 18, flexShrink: 1 },
+  name: { fontFamily: font.bold, fontSize: 17, lineHeight: 20, flexShrink: 1 },
   ticker: { ...type.ticker },
   foot: { marginTop: 8, minHeight: 24, justifyContent: 'center', alignItems: 'flex-start' },
 });

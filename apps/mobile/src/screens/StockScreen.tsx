@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { color, layout, spacing, type } from '../theme';
+import { cashColor, color, layout, spacing, stockColor, type } from '../theme';
 import { HeaderBack } from '../components/HeaderBack';
 import { BigNumber } from '../components/BigNumber';
 import { Button } from '../components/Button';
@@ -67,39 +67,62 @@ export function StockScreen({ stock, onBack, onBuy, onSend }: Props) {
     : history?.changePct;
   const shownWhen = touching ? chartTime(points[scrub][0], range) : copy.rangeWord[range];
 
-  const tileW = (width - spacing.screenPad * 2 - 10) / 2;
+  const pad = 16;
+  const tileW = (width - pad * 2 - 10) / 2;
+  const heroW = width - pad * 2 - 40;
+  const c = stockColor(stock.symbol);
+  // You hold: lime, unless the stock itself is lime.
+  const holdColors = c.bg === color.lime ? stockColor('MSFT') : stockColor('NVDA');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <HeaderBack onBack={onBack} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} scrollEnabled={!touching}>
-        <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
-          {stock.name}
-        </Text>
-        <Text style={styles.ticker}>{ticker(stock.symbol)}</Text>
-         <BigNumber value={shownPrice} size="balance" align="left" style={{ marginTop: 20 }} />
-        <View style={styles.changeRow}>
-          <Change value={shownChange} />
-          <Text style={styles.caption}>{shownWhen}</Text>
-        </View>
-        <View style={styles.chart}>
-          {values.length > 1 ? (
-            <Chart values={values} width={width - spacing.screenPad * 2} height={CHART_H} onScrub={setScrub} />
-          ) : (
-            <Text style={styles.caption}>{history ? copy.noChart : ''}</Text>
-          )}
+        <View style={[styles.hero, { backgroundColor: c.bg }]}>
+          <View style={styles.heroTop}>
+            <Text style={[styles.name, { color: c.ink }]} numberOfLines={1} adjustsFontSizeToFit>
+              {stock.name}
+            </Text>
+            <Text style={[styles.ticker, { color: c.soft }]}>{ticker(stock.symbol)}</Text>
+          </View>
+          <BigNumber
+            value={shownPrice}
+            size="balance"
+            align="left"
+            tone={c.ink === color.ink ? 'ink' : 'onBlue'}
+            style={{ marginTop: 12 }}
+          />
+          <View style={styles.changeRow}>
+            <Change value={shownChange} />
+            <Text style={[styles.caption, { color: c.ink }]}>{shownWhen}</Text>
+          </View>
+          <View style={styles.chart}>
+            {values.length > 1 ? (
+              <Chart
+                values={values}
+                width={heroW}
+                height={CHART_H}
+                onScrub={setScrub}
+                ink={c.ink}
+                faded={c.soft}
+                ground={c.bg}
+              />
+            ) : (
+              <Text style={[styles.caption, { color: c.ink }]}>{history ? copy.noChart : ''}</Text>
+            )}
+          </View>
         </View>
         <Segmented
           fill
           value={range}
           onChange={setRange}
           options={RANGES.map((r) => ({ value: r, label: r }))}
-          style={{ marginTop: 16 }}
+          style={{ marginTop: 14 }}
         />
         <View style={styles.tiles}>
           <StockTile
             width={tileW}
-            blue={!!held && held > 0}
+            colors={holdColors}
             name={copy.youHold}
             tickerText={ticker(stock.symbol)}
             value={held == null ? '' : usd2(held)}
@@ -107,6 +130,7 @@ export function StockScreen({ stock, onBack, onBuy, onSend }: Props) {
           />
           <StockTile
             width={tileW}
+            colors={cashColor}
             name={copy.youSent}
             tickerText=""
             value={usd2(sent.usd)}
@@ -126,17 +150,19 @@ export function StockScreen({ stock, onBack, onBuy, onSend }: Props) {
   );
 }
 
-const CHART_H = 220;
+const CHART_H = 180;
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
-  scroll: { paddingHorizontal: spacing.screenPad, paddingTop: layout.titleGap, paddingBottom: 140 },
-  name: { ...type.headline, color: color.ink },
-  ticker: { ...type.ticker, color: color.textSecondary, marginTop: 8 },
+  scroll: { paddingHorizontal: 16, paddingTop: layout.titleGap, paddingBottom: 140 },
+  hero: { borderRadius: 32, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 18 },
+  heroTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
+  name: { ...type.headline, fontSize: 44, lineHeight: 50, flexShrink: 1 },
+  ticker: { ...type.ticker },
   changeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  caption: { ...type.caption, color: color.textSecondary },
-  chart: { marginTop: 24, height: CHART_H, justifyContent: 'center' },
-  tiles: { flexDirection: 'row', gap: 10, marginTop: 24 },
+  caption: { ...type.caption },
+  chart: { marginTop: 16, height: CHART_H, justifyContent: 'center' },
+  tiles: { flexDirection: 'row', gap: 10, marginTop: 14 },
   pinned: {
     position: 'absolute',
     left: 0,

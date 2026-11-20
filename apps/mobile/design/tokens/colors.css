@@ -24,7 +24,18 @@
 --people-face-2:var(--wren-belly);
 --people-initial:var(--wren-ink);
 
---move-up:var(--base-green);
---move-down:var(--base-red);
+/* Wren Color: a move is an arrow on lime (up) or coral (down), ink text. */
+--move-up:#C6F432;
+--move-down:#FFB199;
 --move-text:var(--gray-100);
+
+/* Wren Color: each stock owns one color everywhere. Cash is always sun. */
+--stock-blue:#0050FA;
+--stock-lime:#C6F432;
+--stock-coral:#FFB199;
+--stock-sun:#FFD84D;
+--stock-lilac:#B9A7FF;
+--stock-mint:#7FE0C2;
+--stock-tangerine:#FF8A3D;
+--stock-ink:#0A0B0D;
 }

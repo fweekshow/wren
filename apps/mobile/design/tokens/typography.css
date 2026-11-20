@@ -1,7 +1,7 @@
 :root{
---font-display:"Inter Tight","Base Sans",ui-sans-serif,system-ui,sans-serif;
---font-ui:"Inter Tight","Base Sans",ui-sans-serif,system-ui,-apple-system,sans-serif;
---font-mono:"Roboto Mono","Base Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+--font-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+--font-ui:"Bricolage Grotesque",ui-sans-serif,system-ui,-apple-system,sans-serif;
+--font-mono:"DM Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
 /* display — Base headline spec: medium, -3% kerning, 100% leading */
 --type-total:500 64px/1 var(--font-display);
 --type-amount:500 88px/1 var(--font-display);

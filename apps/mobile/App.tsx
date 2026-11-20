@@ -14,16 +14,13 @@ import { PrivyProvider, useEmbeddedEthereumWallet, usePrivy, useSigners } from '
 import { PrivyElements } from '@privy-io/expo/ui';
 import * as Linking from 'expo-linking';
 import {
-  useFonts as useInterTight,
-  InterTight_400Regular,
-  InterTight_500Medium,
-  InterTight_600SemiBold,
-} from '@expo-google-fonts/inter-tight';
-import {
-  useFonts as useRobotoMono,
-  RobotoMono_400Regular,
-  RobotoMono_500Medium,
-} from '@expo-google-fonts/roboto-mono';
+  useFonts as useBricolage,
+  BricolageGrotesque_400Regular,
+  BricolageGrotesque_500Medium,
+  BricolageGrotesque_700Bold,
+  BricolageGrotesque_800ExtraBold,
+} from '@expo-google-fonts/bricolage-grotesque';
+import { useFonts as useDMMono, DMMono_400Regular, DMMono_500Medium } from '@expo-google-fonts/dm-mono';
 
 import { clearSession, getSession, setSession } from './src/auth';
 import { applyDialCode, getContactsPermission, Person } from './src/contacts';
@@ -65,15 +62,13 @@ const CONTACTS_SKIPPED = 'wren.contacts.skipped';
 const CONNECT_SEEN = 'wren.connect.seen';
 
 export default function App() {
-  const [interReady, interError] = useInterTight({
-    InterTight_400Regular,
-    InterTight_500Medium,
-    InterTight_600SemiBold,
+  const [interReady, interError] = useBricolage({
+    BricolageGrotesque_400Regular,
+    BricolageGrotesque_500Medium,
+    BricolageGrotesque_700Bold,
+    BricolageGrotesque_800ExtraBold,
   });
-  const [monoReady, monoError] = useRobotoMono({
-    RobotoMono_400Regular,
-    RobotoMono_500Medium,
-  });
+  const [monoReady, monoError] = useDMMono({ DMMono_400Regular, DMMono_500Medium });
   // Text drawn before the fonts land stays in the system face, so wait.
   // A font error falls through to the system face rather than a blank app.
   const fontsSettled = (interReady || !!interError) && (monoReady || !!monoError);
