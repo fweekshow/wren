@@ -1,45 +1,19 @@
 {
-  "name": "wren",
+  "name": "wren-monorepo",
   "version": "0.1.0",
-  "main": "index.ts",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "start": "expo start --dev-client",
-    "ios": "expo run:ios",
-    "android": "expo run:android",
-    "prebuild": "expo prebuild",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bun run --filter '*' typecheck",
+    "dev:channels": "bun run --filter basemate-channels dev",
+    "dev:mobile": "bun run --filter wren start"
   },
-  "dependencies": {
-    "@expo-google-fonts/inter-tight": "^0.4.2",
-    "@expo-google-fonts/roboto-mono": "^0.4.2",
-    "@privy-io/expo": "^0.78.3",
-    "@privy-io/expo-native-extensions": "^0.0.13",
-    "expo": "~58.0.25",
-    "expo-apple-authentication": "~58.0.3",
-    "expo-application": "~58.1.2",
-    "expo-clipboard": "~58.0.4",
-    "expo-contacts": "~58.0.11",
-    "expo-font": "~58.0.12",
-    "expo-linking": "~58.0.17",
-    "expo-secure-store": "~58.0.3",
-    "expo-status-bar": "~58.0.5",
-    "expo-web-browser": "~58.0.8",
-    "permissionless": "^0.2.57",
-    "react": "19.3.0",
-    "react-native": "0.88.1",
-    "react-native-nitro-modules": "^0.37.2",
-    "react-native-passkeys": "^0.4.2",
-    "react-native-qrcode-styled": "^0.4.0",
-    "react-native-quick-base64": "^3.0.1",
-    "react-native-quick-crypto": "^1.1.9",
-    "react-native-safe-area-context": "~5.11.1",
-    "react-native-svg": "15.16.0",
-    "react-native-webview": "^14.0.1",
-    "viem": "^2.57.19"
+  "patchedDependencies": {
+    "@photon-ai/advanced-imessage@0.11.2": "patches/@photon-ai%2Fadvanced-imessage@0.11.2.patch"
   },
-  "devDependencies": {
-    "@types/react": "~19.3.0",
-    "typescript": "~6.0.3"
-  },
-  "private": true
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "imessage_wallets" DROP COLUMN IF EXISTS "base_app_address";

@@ -1,0 +1,11 @@
+{
+  "name": "imessage-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "echo 'imessage-bot shares the channels server'",
+    "build": "echo 'imessage-bot shares the channels server'",
+    "test": "echo ok"
+  }
+}
