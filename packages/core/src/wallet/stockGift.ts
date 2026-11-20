@@ -49,6 +49,8 @@ export type StockGiftIntent = {
   sharePriceUsd?: number;
   /** Fee fixed at checkout (Wren: $2.99, or 0 on a first send). Absent = 1%. */
   feeUsd?: number;
+  /** Paid from cash: always buy new, never send the sender's own shares. */
+  buyNew?: boolean;
 };
 
 export type StockGiftRow = {
@@ -383,7 +385,7 @@ async function fulfillStockGiftLocked(
   const stockBal = onrampFunded
     ? 0n
     : await readErc20Balance(quote.entry.address, gift.walletAddress).catch(() => 0n);
-  const fromHoldings = !onrampFunded && stockBal >= quote.sharesRaw;
+  const fromHoldings = !onrampFunded && !intent.buyNew && stockBal >= quote.sharesRaw;
   const stockBudget = Math.max(0, gift.amountUsd - ourFeeUsd);
   // USD gifts only: if price drifted above the stock budget, buy what the funded amount covers.
   // Qty gifts keep the asked share count — do not downsize to fractional shares.

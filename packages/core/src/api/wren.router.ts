@@ -1,6 +1,7 @@
 import express, { Router, type Request, type Response } from "express";
 
 import { fulfillStockGift, StockGiftAdapter } from "@/wallet/stockGift.js";
+import { buyStockFromCash, WrenBuyError } from "@/wallet/wrenBuy.js";
 import { wrenSendCharge } from "@/discovery/stocks/giftStock.service.js";
 import {
   startPriceHistoryJob,
@@ -178,7 +179,16 @@ router.get("/api/app/send-quote", async (req: Request, res: Response) => {
   try {
     const firstSend = (await StockGiftAdapter.countCompletedBySender(user)) === 0;
     res.setHeader("Cache-Control", "no-store");
-    res.json({ ...wrenSendCharge(usd, { firstSend }), firstSend });
+    const charge = wrenSendCharge(usd, { firstSend });
+    // From cash there's no card, so no card cost: just stock + fee.
+    const fromCash = req.query.payFrom === "cash";
+    res.json({
+      ...charge,
+      cardUsd: fromCash ? 0 : charge.cardUsd,
+      totalUsd: fromCash ? charge.usdcNeeded : charge.totalUsd,
+      firstSend,
+      payFrom: fromCash ? "cash" : "card",
+    });
   } catch (err) {
     logger.error({ err }, "GET /api/app/send-quote");
     res.status(500).json({ error: "Couldn't price that." });
@@ -199,7 +209,12 @@ router.post("/api/app/stock-gifts/send", json, async (req: Request, res: Respons
         phone: req.body?.recipient?.phone,
       },
       pricing: "wren",
+      payFrom: req.body?.payFrom === "cash" ? "cash" : "card",
     });
+    if (created.status === "sending") {
+      // Paid from cash: nothing to wait for, start it now.
+      await StockGiftAdapter.claimGiftStart(created.giftId);
+    }
     void fulfillStockGift(created.giftId).catch((err) => {
       logger.error({ err }, "fulfill stock gift");
     });
@@ -213,6 +228,10 @@ router.post("/api/app/stock-gifts/send", json, async (req: Request, res: Respons
     });
   } catch (err) {
     if (err instanceof WebGiftError) {
+      if (err.message === "not_enough_cash") {
+        res.status(402).json({ error: "not_enough_cash", ...err.details });
+        return;
+      }
       res.status(err.status).json({ error: "That didn't go through." });
       return;
     }
@@ -229,6 +248,28 @@ router.get("/terms", (_req, res) => {
 });
 router.get("/privacy", (_req, res) => {
   res.type("html").send(privacyHtml);
+});
+
+// ── Buy for yourself ────────────────────────────────────────────────────────
+// From cash, no Wren fee. 402 not_enough_cash with cashUsd / neededUsd.
+router.post("/api/app/buy", json, async (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  try {
+    const result = await buyStockFromCash({
+      senderId: user,
+      symbol: String(req.body?.symbol ?? ""),
+      usd: Number(req.body?.usd),
+    });
+    res.json(result);
+  } catch (err) {
+    if (err instanceof WrenBuyError) {
+      res.status(err.status).json({ error: err.message, ...(err.details ?? {}) });
+      return;
+    }
+    logger.error({ err }, "POST /api/app/buy");
+    res.status(500).json({ error: "That didn't go through." });
+  }
 });
 
 // ── Market data (public) ────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { listSpotBuyableOffers } from "@/discovery/doppler/stockCatalog.js";
 import {
   giftChargeUsd,
   giftOnrampUsd,
+  readErc20Balance,
   wrenSendCharge,
   giftSpendUsd,
   quoteStockGift,
@@ -21,12 +22,16 @@ import { StockGiftAdapter, type StockGiftIntent } from "@/wallet/stockGift.js";
 
 export class WebGiftError extends Error {
   status: number;
-  constructor(message: string, status = 400) {
+  details?: Record<string, unknown>;
+  constructor(message: string, status = 400, details?: Record<string, unknown>) {
     super(message);
     this.name = "WebGiftError";
     this.status = status;
+    this.details = details;
   }
 }
+
+const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
 
 export const WEB_GIFT_CHANNELS = ["imessage", "text", "email", "whatsapp"] as const;
 
@@ -51,8 +56,10 @@ export async function createWebStockGiftCheckout(input: {
   saveContact?: boolean;
   /** "wren": flat $2.99 per send, first send free. Default: Basemate's 1%. */
   pricing?: "wren";
+  /** "cash": spend USDC already in the account; no card checkout. */
+  payFrom?: "card" | "cash";
 }): Promise<{
-  status: "pay";
+  status: "pay" | "sending";
   payUrl: string;
   giftId: string;
   chargeUsd: number;
@@ -139,7 +146,34 @@ export async function createWebStockGiftCheckout(input: {
     await maybeAutoSaveContact(input.senderId, { name, phone });
   }
 
-  // Web always goes through Apple Pay — don't silently send from holdings.
+  if (input.payFrom === "cash") {
+    // Spend cash already in the account. Check it covers stock + fee first.
+    const needRaw = BigInt(Math.round(walletCharge.usdcNeeded * 1_000_000));
+    const haveRaw = await readErc20Balance(USDC_ADDRESS, embedded.address).catch(() => 0n);
+    if (haveRaw < needRaw) {
+      throw new WebGiftError("not_enough_cash", 402, {
+        cashUsd: Number(haveRaw) / 1_000_000,
+        neededUsd: walletCharge.usdcNeeded,
+      });
+    }
+    intent.buyNew = true;
+    const gift = await StockGiftAdapter.create({
+      senderId: input.senderId,
+      walletAddress: embedded.address,
+      intent,
+      amountUsd: walletCharge.usdcNeeded,
+    });
+    return {
+      status: "sending",
+      payUrl: "",
+      giftId: gift.id,
+      chargeUsd: walletCharge.usdcNeeded,
+      amountLabel: quote.amountLabel,
+      ...(wren ?? {}),
+    };
+  }
+
+  // Card: always through Apple Pay — don't silently send from holdings.
   const gift = await StockGiftAdapter.create({
     senderId: input.senderId,
     walletAddress: embedded.address,
