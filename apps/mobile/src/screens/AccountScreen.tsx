@@ -275,15 +275,15 @@ export function AccountScreen(props: Props) {
   const peopleTab = (
     <>
       <View style={styles.hero}>
-        <Text style={styles.title}>{copy.yourPeople}</Text>
-        <Text style={[styles.caption, { marginTop: 6 }]}>{copy.peopleCount(onWren.length)}</Text>
+        <Text style={styles.headline}>{copy.yourPeople}</Text>
+        <Text style={styles.sub}>{copy.peopleCount(onWren.length)}</Text>
       </View>
 
       {onWren.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.faces}>
           {onWren.map((p) => (
             <Pressable key={p.phone} onPress={() => props.onOpenPerson(p.phone)} style={styles.face}>
-              <Avatar name={p.name} size={56} />
+              <Avatar name={p.name} size={72} />
               <Text style={styles.faceName} numberOfLines={1}>
                 {p.name.split(' ')[0]}
               </Text>
@@ -311,24 +311,26 @@ export function AccountScreen(props: Props) {
                 {copy.shareToSee}
               </EmptyCard>
             ) : moves?.items.length ? (
-              <Card>
-                {moves.items.map((m, i) => (
+              <View style={{ gap: 14 }}>
+                {moves.items.map((m) => (
                   <Pressable
                     key={`${m.phone}-${m.at}`}
                     onPress={() => props.onOpenPerson(m.phone)}
-                    style={[styles.moveRow, rowLine(i, moves.items.length)]}
+                    style={styles.moveRow}
                   >
                     <Avatar name={m.name || '?'} size={40} />
-                    <View style={styles.mid}>
-                      <Text style={styles.body} numberOfLines={1}>
+                    <View style={{ flexShrink: 1 }}>
+                      <BubbleCard from="them">
                         {copy.moveBought(m.name.split(' ')[0] || copy.someone, m.stockName)}
-                      </Text>
-                      <Text style={styles.whenText}>{when(m.at)}</Text>
+                      </BubbleCard>
+                      <View style={styles.moveMeta}>
+                        <Change value={market.get(m.symbol)?.changePct} />
+                        <Text style={styles.whenText}>{when(m.at)}</Text>
+                      </View>
                     </View>
-                    <Change value={market.get(m.symbol)?.changePct} />
                   </Pressable>
                 ))}
-              </Card>
+              </View>
             ) : (
               <EmptyCard>{copy.noMoves}</EmptyCard>
             )}
@@ -341,9 +343,9 @@ export function AccountScreen(props: Props) {
           <SectionLabel>{copy.notOnWren}</SectionLabel>
           <Text style={[styles.caption, { marginTop: 4 }]}>{copy.notOnWrenNote}</Text>
           <View style={{ marginTop: 8 }}>
-            {notOnWren.map((p) => (
-              <View key={p.phone} style={styles.inviteRow}>
-                <Avatar name={p.name} size={40} />
+            {notOnWren.map((p, i) => (
+              <View key={p.phone} style={[styles.inviteRow, rowLine(i, notOnWren.length)]}>
+                <Avatar name={p.name} size={48} />
                 <Text style={[styles.body, { flex: 1 }]} numberOfLines={1}>
                   {p.name}
                 </Text>
@@ -399,6 +401,10 @@ const styles = StyleSheet.create({
   padded: { paddingHorizontal: spacing.screenPad, marginTop: 20 },
   label: { ...type.label, color: color.textSecondary },
   title: { ...type.title, color: color.ink },
+  headline: { ...type.headline, color: color.ink },
+  sub: { ...type.bodyRegular, color: color.textSecondary, marginTop: 10 },
+  moveRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  moveMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, marginLeft: 4 },
   caption: { ...type.caption, color: color.textSecondary },
   failed: { ...type.titleSm, color: color.ink, marginTop: 14 },
   todayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
@@ -406,7 +412,6 @@ const styles = StyleSheet.create({
   skel: { backgroundColor: color.card, borderRadius: 999 },
   section: { paddingHorizontal: spacing.screenPad, marginTop: 24 },
   stockRow: { minHeight: 72, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  moveRow: { minHeight: 68, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
   mid: { flex: 1, minWidth: 0 },
   body: { ...type.body, color: color.ink },
   ticker: { ...type.ticker, color: color.textSecondary, marginTop: 2 },
@@ -414,17 +419,10 @@ const styles = StyleSheet.create({
   valueCol: { width: 92, alignItems: 'flex-end', gap: 4 },
   seeAll: { ...type.label, color: color.ink },
   whenText: { ...type.caption, color: color.textTertiary },
-  faces: { paddingHorizontal: spacing.screenPad, gap: 12, marginTop: 20 },
-  face: { width: 64, alignItems: 'center', gap: 6 },
+  faces: { paddingHorizontal: spacing.screenPad, gap: 14, marginTop: 24 },
+  face: { width: 84, alignItems: 'center', gap: 8 },
   faceName: { ...type.label, color: color.ink },
-  inviteRow: {
-    minHeight: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: color.hairline,
-  },
+  inviteRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12 },
   pinned: {
     position: 'absolute',
     left: 0,

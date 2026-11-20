@@ -1,11 +1,11 @@
 // Activity: every stock you sent and where it is. Only you see this.
-// Rows: "Maya · $50 of Apple" on the left; "In their account · 2h" on the right.
-// The rows are shared with the Account tab, which shows the latest three.
+// Wren Bold: a 52px headline, open rows (no card), a face, "Maya" over
+// "$50 of Apple · 2h", and where it is as a pill on the right.
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { color, layout, spacing, type } from '../theme';
+import { color, font, layout, radius, spacing, type } from '../theme';
 import { HeaderBack } from '../components/HeaderBack';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
@@ -31,6 +31,18 @@ export function stateLabel(a: ActivityItem): string {
   }
 }
 
+/** In their account reads as good news in Wren's people blue; the rest stay gray. */
+function StatePill({ a }: { a: ActivityItem }) {
+  const good = a.state === 'in_account';
+  return (
+    <View style={[styles.pill, good && { backgroundColor: color.wrenTint }]}>
+      <Text style={[styles.pillText, good && { color: color.wrenWing }]} numberOfLines={1}>
+        {stateLabel(a)}
+      </Text>
+    </View>
+  );
+}
+
 export function ActivityRows({
   items,
   onOpen,
@@ -39,7 +51,7 @@ export function ActivityRows({
   onOpen?: (a: ActivityItem) => void;
 }) {
   return (
-    <Card>
+    <View>
       {items.map((a, i) => {
         const name = a.name ?? a.phone ?? copy.someone;
         return (
@@ -49,25 +61,20 @@ export function ActivityRows({
             onPress={() => onOpen?.(a)}
             style={[styles.row, rowLine(i, items.length)]}
           >
-            <Avatar name={name} size={40} />
+            <Avatar name={name} size={48} />
             <View style={styles.mid}>
               <Text style={styles.name} numberOfLines={1}>
                 {name}
               </Text>
               <Text style={styles.what} numberOfLines={1}>
-                {copy.sendWhat(usdShort(a.usd), a.stockName)}
+                {copy.sendWhat(usdShort(a.usd), a.stockName)} · {when(a.at)}
               </Text>
             </View>
-            <View style={styles.right}>
-              <Text style={styles.status} numberOfLines={1}>
-                {stateLabel(a)}
-              </Text>
-              <Text style={styles.when}>{when(a.at)}</Text>
-            </View>
+            <StatePill a={a} />
           </Pressable>
         );
       })}
-    </Card>
+    </View>
   );
 }
 
@@ -150,15 +157,21 @@ export function ActivityScreen({ onBack, onSend, onOpenPerson }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.canvas },
   scroll: { paddingHorizontal: spacing.screenPad, paddingTop: layout.titleGap, paddingBottom: 140 },
-  title: { ...type.title, color: color.ink },
-  sub: { ...type.caption, color: color.textSecondary, marginTop: 8 },
-  row: { minHeight: 76, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  mid: { flex: 1, minWidth: 0 },
+  title: { ...type.headline, color: color.ink },
+  sub: { ...type.bodyRegular, color: color.textSecondary, marginTop: 10 },
+  row: { minHeight: 80, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  mid: { flex: 1, minWidth: 0, gap: 2 },
   name: { ...type.body, color: color.ink },
-  what: { ...type.caption, color: color.textSecondary },
-  right: { alignItems: 'flex-end', gap: 4, maxWidth: 150 },
-  status: { ...type.caption, color: color.ink },
-  when: { ...type.caption, color: color.textTertiary },
+  what: { ...type.label, fontFamily: font.uiRegular, color: color.textSecondary },
+  pill: {
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: radius.pill,
+    backgroundColor: color.card,
+    justifyContent: 'center',
+    maxWidth: 150,
+  },
+  pillText: { fontFamily: font.uiSemiBold, fontSize: 13, color: color.ink },
   empty: { paddingVertical: 22, paddingHorizontal: 20, gap: 14 },
   emptyText: { ...type.body, color: color.textSecondary },
 });
