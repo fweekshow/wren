@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changePct, downsample, onlyPriceable } from "./priceHistory.js";
+import { changePct, downsample, dropRepeats, onlyPriceable } from "./priceHistory.js";
 
 describe("only priceable stocks", () => {
   const items = [{ symbol: "AAPLc" }, { symbol: "ARMc" }, { symbol: "NVDAc" }];
@@ -33,5 +33,30 @@ describe("price history helpers", () => {
     expect(changePct(350.6, 348.48)).toBe(-0.6);
     expect(changePct(null, 10)).toBeNull();
     expect(changePct(10, null)).toBeNull();
+  });
+});
+
+describe("dropRepeats", () => {
+  it("removes a frozen run but keeps where it started and the newest point", () => {
+    const pts: [number, number][] = [
+      [1, 350.6],
+      [2, 350.6],
+      [3, 350.6],
+      [4, 351.3],
+      [5, 351.3],
+    ];
+    expect(dropRepeats(pts)).toEqual([
+      [1, 350.6],
+      [4, 351.3],
+      [5, 351.3],
+    ]);
+  });
+  it("keeps every point when the price keeps moving", () => {
+    const pts: [number, number][] = [
+      [1, 1],
+      [2, 2],
+      [3, 1],
+    ];
+    expect(dropRepeats(pts)).toEqual(pts);
   });
 });

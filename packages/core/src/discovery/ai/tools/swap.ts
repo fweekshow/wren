@@ -7,6 +7,7 @@ import {
   toHex,
   type Address,
 } from "viem";
+import { resolveBaseRpcUrl } from "@/chain/base-rpc.js";
 import type { WalletCall } from "@/discovery/ai/types.js";
 import {
   BASE_TOKENS,
@@ -605,7 +606,12 @@ type SlipstreamUsdcPairMeta = {
   tickSpacing: number;
 };
 
-const slipstreamPairCache = new Map<string, SlipstreamUsdcPairMeta | null>();
+// Pools rarely change, but the price does: a found pool is kept for a minute
+// (its price is the live pool price, so it must stay fresh), a miss for two
+// minutes so one DexScreener hiccup doesn't hide the pool until a restart.
+const SLIPSTREAM_HIT_TTL_MS = 60_000;
+const SLIPSTREAM_MISS_TTL_MS = 120_000;
+const slipstreamPairCache = new Map<string, { meta: SlipstreamUsdcPairMeta | null; until: number }>();
 
 /** Pool USD price for a Slipstream USDC pair (null when no liquid pool). */
 export async function getSlipstreamUsdcPoolPriceUsd(
@@ -620,7 +626,15 @@ async function fetchSlipstreamUsdcPairMeta(
   tokenAddress: string,
 ): Promise<SlipstreamUsdcPairMeta | null> {
   const key = tokenAddress.toLowerCase();
-  if (slipstreamPairCache.has(key)) return slipstreamPairCache.get(key)!;
+  const cached = slipstreamPairCache.get(key);
+  if (cached && cached.until > Date.now()) return cached.meta;
+  const remember = (meta: SlipstreamUsdcPairMeta | null) => {
+    slipstreamPairCache.set(key, {
+      meta,
+      until: Date.now() + (meta ? SLIPSTREAM_HIT_TTL_MS : SLIPSTREAM_MISS_TTL_MS),
+    });
+    return meta;
+  };
 
   const usdc = USDC_BASE.toLowerCase();
   try {
@@ -640,52 +654,31 @@ async function fetchSlipstreamUsdcPairMeta(
         quoteToken: { address: string };
       }>;
     };
+    // DexScreener labels Aerodrome pools "aerodrome" or "aero" depending on
+    // the pool's factory; the factory check below decides which we can route.
     const candidates = (json.pairs ?? []).filter((p) => {
-      if (p.chainId !== "base" || p.dexId !== "aerodrome") return false;
+      if (p.chainId !== "base" || (p.dexId !== "aerodrome" && p.dexId !== "aero")) return false;
       const addrs = [p.baseToken.address, p.quoteToken.address].map((a) => a.toLowerCase());
-      return addrs.includes(key) && addrs.includes(usdc);
+      return addrs.includes(key) && addrs.includes(usdc) && Number(p.priceUsd) > 0 && !!p.pairAddress;
     });
     candidates.sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0));
-    const best = candidates[0];
-    if (!best?.pairAddress || !best.priceUsd) {
-      slipstreamPairCache.set(key, null);
-      return null;
-    }
-    const priceUsd = parseFloat(best.priceUsd);
-    if (!Number.isFinite(priceUsd) || priceUsd <= 0) {
-      slipstreamPairCache.set(key, null);
-      return null;
-    }
     const publicClient = await getBasePublicClient();
-    const poolAddress = best.pairAddress as Address;
-    const [tickSpacing, factory] = await Promise.all([
-      publicClient.readContract({
-        address: poolAddress,
-        abi: SLIPSTREAM_POOL_ABI,
-        functionName: "tickSpacing",
-      }),
-      publicClient.readContract({
-        address: poolAddress,
-        abi: SLIPSTREAM_POOL_ABI,
-        functionName: "factory",
-      }),
-    ]);
-    const routerAddress = SLIPSTREAM_ROUTER_BY_FACTORY.get(factory.toLowerCase());
-    if (!routerAddress) {
-      slipstreamPairCache.set(key, null);
-      return null;
+    // Biggest pool first; use the first one whose router we know.
+    for (const pair of candidates.slice(0, 4)) {
+      const poolAddress = pair.pairAddress as Address;
+      const read = await Promise.all([
+        publicClient.readContract({ address: poolAddress, abi: SLIPSTREAM_POOL_ABI, functionName: "tickSpacing" }),
+        publicClient.readContract({ address: poolAddress, abi: SLIPSTREAM_POOL_ABI, functionName: "factory" }),
+      ]).catch(() => null);
+      if (!read) continue;
+      const [tickSpacing, factory] = read;
+      const routerAddress = SLIPSTREAM_ROUTER_BY_FACTORY.get(factory.toLowerCase());
+      if (!routerAddress) continue;
+      return remember({ poolAddress, routerAddress, priceUsd: Number(pair.priceUsd), tickSpacing: Number(tickSpacing) });
     }
-    const meta: SlipstreamUsdcPairMeta = {
-      poolAddress,
-      routerAddress,
-      priceUsd,
-      tickSpacing: Number(tickSpacing),
-    };
-    slipstreamPairCache.set(key, meta);
-    return meta;
+    return remember(null);
   } catch {
-    slipstreamPairCache.set(key, null);
-    return null;
+    return remember(null);
   }
 }
 
@@ -1278,10 +1271,9 @@ async function getBasePublicClient() {
   const { base } = await import("viem/chains");
   return createPublicClient({
     chain: base,
-    transport: http(
-      process.env.BASE_RPC_URL ??
-        `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY ?? ""}`,
-    ),
+    // Same fallback as the rest of the code: an empty Alchemy key broke every
+    // read here when neither BASE_RPC_URL nor ALCHEMY_API_KEY was set.
+    transport: http(resolveBaseRpcUrl()),
   });
 }
 

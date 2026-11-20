@@ -342,7 +342,7 @@ function publicClient() {
   return createPublicClient({ chain: base, transport: http(resolveBaseRpcUrl()) });
 }
 
-function isUsEquityMarketHours(now = new Date()): boolean {
+export function isUsEquityMarketHours(now = new Date()): boolean {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     weekday: "short",

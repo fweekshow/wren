@@ -17,7 +17,7 @@ import { base } from "viem/chains";
 import { resolveBaseRpcUrl } from "@/chain/base-rpc.js";
 import { db } from "@/discovery/db.js";
 import { listSpotBuyableOffers } from "@/discovery/doppler/stockCatalog.js";
-import { resolveStockToken } from "@/discovery/doppler/stockRegistry.js";
+import { isUsEquityMarketHours, resolveStockToken } from "@/discovery/doppler/stockRegistry.js";
 import { liveSharePriceUsd } from "@/discovery/stocks/giftStock.service.js";
 import { logger } from "@/utils/logger.js";
 
@@ -89,7 +89,11 @@ export async function snapshotStockPrices(now = new Date()): Promise<number> {
     const entry = resolveStockToken(offer.symbol);
     if (!entry) continue;
     const live = await liveSharePriceUsd(entry).catch(() => null);
-    if (live) rows.push({ symbol: offer.symbol, at: slot, price: live.priceUsd, source: live.source });
+    if (!live) continue;
+    // Chainlink pauses when the US market is closed. Without a live pool price,
+    // saving its last answer would draw a flat line all night: skip the slot.
+    if (live.source === "chainlink" && !isUsEquityMarketHours(now)) continue;
+    rows.push({ symbol: offer.symbol, at: slot, price: live.priceUsd, source: live.source });
   }
   await insertPrices(rows);
   return rows.length;
@@ -259,7 +263,22 @@ export async function stockPriceHistory(
   const last = points.length ? points[points.length - 1][1] : null;
   // Change is measured from the last price before the range opened.
   const baseline = (before.rows[0] as { p?: number } | undefined)?.p ?? (points[0]?.[1] ?? null);
-  return { symbol, range, priceUsd: last, changePct: changePct(baseline, last), points: downsample(points) };
+  return { symbol, range, priceUsd: last, changePct: changePct(baseline, last), points: downsample(dropRepeats(points)) };
+}
+
+/**
+ * Drops points that repeat the price before them, keeping the newest. A run of
+ * identical prices is a frozen feed (Chainlink while the market is closed),
+ * not trading; charts space points by trade, so dropping them removes the
+ * long flat stretch instead of drawing it.
+ */
+export function dropRepeats(points: [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  points.forEach((pt, i) => {
+    const prev = out[out.length - 1];
+    if (!prev || prev[1] !== pt[1] || i === points.length - 1) out.push(pt);
+  });
+  return out;
 }
 
 // ── Which stocks Wren can price ────────────────────────────────────────────

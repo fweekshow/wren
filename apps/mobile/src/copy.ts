@@ -77,14 +77,16 @@ export const copy = {
   smsOn: 'SMS: on',
   whatsappOn: 'WhatsApp: on',
   linkEmail: 'Link email',
-  allowTitle: 'Let Wren finish the send',
+  // The permission Privy asks for: Wren may carry out buys and sends from
+  // your account when you tap them. Said plainly, once.
+  allowTitle: 'Let Wren send for you',
   allowSteps: [
-    'You pay with Apple Pay or a card',
-    'Wren passes the stock to them',
-    'You only do this once',
+    'You tap Send and pick an amount',
+    'Wren buys the stock with your money',
+    'Wren passes it to them right away',
   ],
-  allowTrust: 'Wren only sends what you tell it to.',
-  allowButton: 'Continue',
+  allowTrust: 'Wren only moves what you tell it to. You allow this once.',
+  allowButton: 'Allow',
   contactsTitle: 'Your people',
   contactsBody: 'So you can pick who to send to.',
   contactsTrust: 'Wren only texts people you send to.',
