@@ -26,4 +26,6 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS=--dns-result-order=ipv4first
 
 # Bun only runs Drizzle migrations. Node owns Spectrum / Photon gRPC.
-CMD sh -c 'bun --cwd packages/core run db:migrate && node --import tsx --dns-result-order=ipv4first apps/channels-server/src/index.ts'
+# Wren shares Basemate's production database, which Basemate migrates; a Wren
+# service only migrates when RUN_MIGRATIONS=true.
+CMD sh -c 'if [ "$RUN_MIGRATIONS" = "true" ]; then bun --cwd packages/core run db:migrate; fi && node --import tsx --dns-result-order=ipv4first apps/channels-server/src/index.ts'
