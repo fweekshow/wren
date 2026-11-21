@@ -108,6 +108,18 @@ export function claimPageHtml(args: {
   const line = cardLine(card);
   const open = card.state === "waiting" || card.state === "sending" || card.state === "delivered";
   const { bg, ink } = card.colors;
+  const m = /^\$(.+)$/.exec(card.amount);
+  const bigAmount = m
+    ? `<div class="amt"><span class="d">$</span><span class="n">${esc(m[1])}</span></div>`
+    : `<div class="amt"><span class="n" style="font-size:56px">${esc(card.amount || card.stockName)}</span></div>`;
+  const headline =
+    card.state === "claimed"
+      ? "Already claimed."
+      : card.state === "returned"
+        ? "This one went back."
+        : card.state === "delivered"
+          ? "It's in your Wren."
+          : `${card.from ?? "Someone"} sent you a stock.`;
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -128,24 +140,41 @@ export function claimPageHtml(args: {
 <meta name="twitter:description" content="${esc(line)}">
 <meta name="twitter:image" content="${esc(args.imageUrl)}">
 <meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  body{margin:0;background:#fff;color:#0A0B0D;font-family:-apple-system,"Helvetica Neue",sans-serif}
-  main{max-width:440px;margin:0 auto;padding:40px 24px}
-  .card{border-radius:28px;overflow:hidden;background:${bg}}
-  .card img{display:block;width:100%;height:auto}
-  h1{font-size:30px;line-height:1.1;letter-spacing:-0.02em;margin:28px 0 8px}
-  p{font-size:17px;color:#5B616E;margin:0 0 28px}
-  a.btn{display:block;text-align:center;text-decoration:none;font-weight:700;font-size:18px;border-radius:999px;padding:18px;margin-top:10px}
+  body{margin:0;background:#fff;color:#0A0B0D;font-family:"Bricolage Grotesque",-apple-system,sans-serif}
+  main{max-width:440px;margin:0 auto;padding:20px 16px 190px}
+  .mark{width:34px;height:34px;border-radius:11px;background:#0050FA;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;margin:0 4px 12px}
+  .hero{border-radius:32px;background:${bg};color:${ink};padding:22px;display:flex;flex-direction:column;gap:22px}
+  .top{display:flex;justify-content:space-between;align-items:center}
+  .who{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700}
+  .face{width:40px;height:40px;border-radius:20px;background:#fff;color:#0A0B0D;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800}
+  .tick{font:500 13px "DM Mono",monospace;color:${card.colors.soft}}
+  .amt{display:flex;align-items:flex-start;letter-spacing:-.04em;line-height:1}
+  .amt .d{font-size:34px;font-weight:700;margin-top:10px}
+  .amt .n{font-size:88px;font-weight:800}
+  .of{font-size:34px;font-weight:800;letter-spacing:-.03em;margin-top:2px}
+  .hold{font-size:15px;opacity:.85}
+  h1{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1.05;margin:24px 8px 0}
+  p{font-size:16px;line-height:1.4;color:#5B616E;margin:12px 8px 0}
+  .pin{position:fixed;left:0;right:0;bottom:0;background:#fff;padding:14px 20px 34px;display:flex;flex-direction:column;gap:10px;max-width:440px;margin:0 auto}
+  a.btn{height:60px;border-radius:999px;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:18px;font-weight:700}
   a.primary{background:#0000FF;color:#fff}
   a.secondary{background:#EEF0F3;color:#0A0B0D}
-  small{display:block;color:#717886;font-size:13px;margin-top:20px;line-height:1.4}
 </style>
 </head><body><main>
-  <div class="card" style="color:${ink}"><img src="${esc(args.imageUrl)}" alt="${esc(title)}"></div>
-  <h1>${esc(title)}</h1>
-  <p>${esc(line)}</p>
-  ${open ? `<a class="btn primary" href="${esc(args.appUrl)}">Open in Wren</a>` : ""}
-  ${open && args.downloadUrl ? `<a class="btn secondary" href="${esc(args.downloadUrl)}">Get Wren</a>` : ""}
-  ${open && card.state !== "delivered" ? `<small>Sign in to Wren with the phone number this was sent to, and it lands in your account.</small>` : ""}
+  <div class="mark" aria-hidden="true">W</div>
+  <div class="hero">
+    <div class="top">
+      <div class="who"><span class="face">${esc((card.from ?? "W").slice(0, 1).toUpperCase())}</span>${esc(card.from ? `from ${card.from}` : "for you")}</div>
+      <span class="tick">${esc(card.ticker)}</span>
+    </div>
+    <div>${bigAmount}<div class="of">of ${esc(card.stockName)}</div></div>
+    <div class="hold">${esc(line)}</div>
+  </div>
+  <h1>${esc(headline)}</h1>
+  ${open && card.state !== "delivered" ? `<p>Sign in to Wren with this phone number and it lands in your account. No fees to claim it.</p>` : ""}
+  ${open ? `<div class="pin"><a class="btn primary" href="${esc(args.appUrl)}">Open in Wren</a>${args.downloadUrl ? `<a class="btn secondary" href="${esc(args.downloadUrl)}">Get Wren</a>` : ""}</div>` : ""}
 </main></body></html>`;
 }

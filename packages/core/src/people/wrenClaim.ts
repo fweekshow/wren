@@ -16,6 +16,9 @@ import { claimStateFromEscrowStatus } from "@/portfolio/claimState.js";
 import { StockGiftAdapter, type StockGiftRow } from "@/wallet/stockGift.js";
 import { PhoneEscrowAdapter } from "@/wallet/phoneEscrow.js";
 import { config } from "@/config/config.js";
+import { ContactsAdapter } from "@/messaging/contacts.adapter.js";
+import { WalletAdapter } from "@/discovery/adapters/wallet.adapter.js";
+import { senderIdLookupKeys } from "@/messaging/utils/senderId.utils.js";
 
 const DEFAULT_ORIGIN = "https://wren-production-a91c91ca.up.railway.app";
 
@@ -124,14 +127,48 @@ export function cardState(row: Pick<StockGiftRow, "giftTxHash">, escrowStatus: s
   return "waiting";
 }
 
-async function senderFirstName(senderId: string): Promise<string | null> {
+// Words people save a contact under that mean something only to them.
+const RELATION = new Set([
+  "mom", "mum", "mama", "mother", "dad", "papa", "father", "bro", "brother", "sis", "sister",
+  "babe", "baby", "honey", "love", "wife", "husband", "hubby", "grandma", "grandpa", "nana",
+  "son", "daughter", "uncle", "aunt", "auntie", "cousin", "me",
+]);
+
+/**
+ * What the recipient should see as the sender's name, from shared contacts:
+ * 1. what the recipient saved the sender as (if they're on Wren: "Mom"),
+ * 2. the sender's profile name,
+ * 3. the first name most of the sender's friends saved them under,
+ *    skipping relationship words ("Mom" in a sibling's phone isn't a name).
+ */
+async function senderFirstName(senderId: string, recipientPhone: string | null): Promise<string | null> {
+  const first = (name: string | null | undefined) => {
+    const t = String(name ?? "").trim().split(/\s+/)[0] ?? "";
+    return t && !/^\+?\d/.test(t) ? t : null;
+  };
   try {
+    if (recipientPhone) {
+      const saved = await ContactsAdapter.findByPhone(recipientPhone, senderId).catch(() => null);
+      if (saved?.name?.trim()) return saved.name.trim();
+    }
+    const profile = await WalletAdapter.getDisplayName(senderId).catch(() => null);
+    if (first(profile)) return first(profile);
+    const keys = senderIdLookupKeys(senderId);
     const { rows } = await db.query(
+      `SELECT name, COUNT(DISTINCT contact_owner) AS n FROM imessage_contacts
+        WHERE contact_phone = ANY($1) AND name IS NOT NULL
+        GROUP BY name ORDER BY n DESC LIMIT 10`,
+      [keys],
+    );
+    for (const r of rows as { name: string }[]) {
+      const f = first(r.name);
+      if (f && !RELATION.has(f.toLowerCase())) return f;
+    }
+    const { rows: wa } = await db.query(
       `SELECT whatsapp_display_name AS name FROM imessage_wallets WHERE sender_id = $1 LIMIT 1`,
       [senderId],
     );
-    const name = String((rows[0] as { name?: string | null } | undefined)?.name ?? "").trim();
-    return name ? name.split(/\s+/)[0] : null;
+    return first((wa[0] as { name?: string } | undefined)?.name);
   } catch {
     return null;
   }
@@ -145,7 +182,10 @@ export async function cardFor(row: StockGiftRow): Promise<ClaimCard> {
     : [];
   return {
     giftId: row.id,
-    from: await senderFirstName(row.senderId),
+    from: await senderFirstName(
+      row.senderId,
+      (row.intent.recipient as { phone?: string | null } | undefined)?.phone ?? null,
+    ),
     amount: amountText(row.intent),
     stockName: offer?.name ?? symbol.replace(/c$/, ""),
     ticker: symbol.replace(/c$/, ""),
