@@ -51,6 +51,8 @@ export type StockGiftIntent = {
   feeUsd?: number;
   /** Paid from cash: always buy new, never send the sender's own shares. */
   buyNew?: boolean;
+  /** Sent from the Wren app: the recipient gets Wren's notice + claim card. */
+  app?: "wren";
 };
 
 export type StockGiftRow = {
@@ -562,6 +564,13 @@ async function fulfillStockGiftLocked(
           .filter(Boolean)
           .join("\n\n"),
       );
+    }
+
+    if (intent.app === "wren" || intent.feeUsd !== undefined) {
+      // Wren: tell the recipient (opted-in channels only) with the claim card.
+      void import("@/messaging/wrenOutbound.js")
+        .then((m) => m.noticeWrenSend(giftId))
+        .catch((err) => logger.warn({ err, giftId }, "[wren] recipient notice failed"));
     }
 
     return { ok: true, txHash, claimUrl };

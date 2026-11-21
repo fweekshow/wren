@@ -137,6 +137,7 @@ export async function createWebStockGiftCheckout(input: {
     const firstSend = (await StockGiftAdapter.countCompletedBySender(input.senderId)) === 0;
     const charge = wrenSendCharge(spendUsd, { firstSend });
     intent.feeUsd = charge.feeUsd;
+    intent.app = "wren";
     walletCharge = { ...walletCharge, feeUsd: charge.feeUsd, ourFeeUsd: charge.feeUsd, usdcNeeded: charge.usdcNeeded, totalUsd: charge.usdcNeeded };
     appleChargeUsd = charge.totalUsd;
     wren = { feeUsd: charge.feeUsd, firstSend };

@@ -17,6 +17,7 @@ import { BubbleCard } from '../components/BubbleCard';
 import { ChannelTile } from '../components/ChannelTile';
 import { HeaderBack, TopBar } from '../components/HeaderBack';
 import { PinnedAction } from '../components/PinnedAction';
+import { messagesUrl, whatsappUrl } from '../chatLinks';
 import { copy } from '../copy';
 import { track } from '../observe';
 import type { Session } from '../auth';
@@ -137,11 +138,10 @@ export function ConnectScreen(props: Props) {
     }
     const target = current?.[channel];
     if (!target?.number) return;
-    const digits = target.number.replace(/[^\d]/g, '');
     const url =
       channel === 'imessage'
-        ? `sms:${digits}&body=${encodeURIComponent(target.prefill)}`
-        : `https://wa.me/${digits}?text=${encodeURIComponent(target.prefill)}`;
+        ? messagesUrl(target.number, target.prefill)
+        : whatsappUrl(target.number, target.prefill);
     setWaiting(channel);
     track('connect_open', { channel, mode: props.mode });
     await Linking.openURL(url).catch(() => undefined);

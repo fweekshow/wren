@@ -80,3 +80,30 @@ export async function routeRecipientNotice(args: {
     return "imessage";
   }
 }
+
+/**
+ * After a Wren send lands: tell the recipient on the chat they turned on
+ * (WhatsApp first, then iMessage), with the /c/ link that unfurls into the
+ * claim card. Nobody who hasn't opted in gets a message; the sender's own
+ * Text/WhatsApp buttons cover them.
+ */
+export async function noticeWrenSend(giftId: string): Promise<"whatsapp" | "imessage" | "share" | "skip"> {
+  const { StockGiftAdapter } = await import("@/wallet/stockGift.js");
+  const { cardFor, cardTitle, claimLink } = await import("@/people/wrenClaim.js");
+  const { sendFundingConfirmDm } = await import("@/wallet/fundingNotify.js");
+  const row = await StockGiftAdapter.get(giftId);
+  const recipient = row?.intent.recipient as { kind?: string; phone?: string | null } | undefined;
+  const phone = recipient?.phone;
+  if (!row || !row.giftTxHash || !phone) return "skip";
+  const [card, link] = await Promise.all([cardFor(row), claimLink(row.id)]);
+  const onWren = recipient?.kind === "wallet";
+  const message = [`${cardTitle(card)}${onWren ? ". It's in your Wren." : "."}`, link].join("\n\n");
+  return routeRecipientNotice({
+    phone,
+    message,
+    sendImessage: async (p, m) => {
+      const ok = await sendFundingConfirmDm(p, m);
+      if (!ok) throw new Error("iMessage sender not running here");
+    },
+  });
+}

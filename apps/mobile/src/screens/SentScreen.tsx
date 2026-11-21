@@ -10,7 +10,7 @@
 // AmountScreen already waited for status === 'sent' before pushing here.
 
 import React, { useEffect, useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, layout, spacing, type } from '../theme';
 import { TopBar } from '../components/HeaderBack';
@@ -21,6 +21,7 @@ import { copy } from '../copy';
 import { formatPhone } from '../format';
 import { track } from '../observe';
 import { getGiftStatus } from '../api';
+import { messagesUrl, whatsappUrl } from '../chatLinks';
 
 type Props = {
   giftId: string;
@@ -57,8 +58,9 @@ export function SentScreen({ giftId, personName, phone, usd, companyName, onHome
       try {
         const r = await getGiftStatus(giftId);
         if (!alive) return;
-        if (r.claimUrl && !r.alreadyOnBasemate) {
-          setDelivery({ kind: 'link', url: r.claimUrl, holdHours: r.holdHours ?? null });
+        const url = r.shareUrl ?? r.claimUrl;
+        if (url && !r.alreadyOnBasemate) {
+          setDelivery({ kind: 'link', url, holdHours: r.holdHours ?? null });
         } else {
           setDelivery({ kind: 'account' });
         }
@@ -76,6 +78,20 @@ export function SentScreen({ giftId, personName, phone, usd, companyName, onHome
     maximumFractionDigits: 2,
   })}`;
   const what = `${dollars} of ${companyName}`;
+
+  // Open Messages or WhatsApp already addressed to them, message typed out.
+  const openChat = async (app: 'messages' | 'whatsapp') => {
+    if (delivery.kind !== 'link' || !phone) return;
+    const body = copy.sentShareMessage(what, delivery.url);
+    const url = app === 'messages' ? messagesUrl(phone, body) : whatsappUrl(phone, body);
+    const opened = await Linking.openURL(url).then(() => true).catch(() => false);
+    if (opened) {
+      setShared(true);
+      track('send_link_shared', { giftId, via: app });
+    } else {
+      void shareLink();
+    }
+  };
 
   const shareLink = async () => {
     if (delivery.kind !== 'link') return;
@@ -117,10 +133,26 @@ export function SentScreen({ giftId, personName, phone, usd, companyName, onHome
       <PinnedAction>
         {needsLink && !shared ? (
           <View style={styles.actions}>
-            <Button onPress={() => void shareLink()}>{copy.sentShare(personName)}</Button>
-            <Button variant="ghost" onPress={onHome}>
-              {copy.sentHome}
-            </Button>
+            {phone ? (
+              <>
+                <Button onPress={() => void openChat('messages')}>{copy.sentTextTo(personName)}</Button>
+                <Button variant="secondary" onPress={() => void openChat('whatsapp')}>
+                  {copy.sentWhatsappTo(personName)}
+                </Button>
+              </>
+            ) : (
+              <Button onPress={() => void shareLink()}>{copy.sentShare(personName)}</Button>
+            )}
+            <View style={styles.smallRow}>
+              {phone ? (
+                <Pressable onPress={() => void shareLink()} hitSlop={10} accessibilityRole="button">
+                  <Text style={styles.smallLink}>{copy.sentMoreWays}</Text>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={onHome} hitSlop={10} accessibilityRole="button">
+                <Text style={styles.smallLink}>{copy.sentNotNow}</Text>
+              </Pressable>
+            </View>
           </View>
         ) : (
           <View style={styles.actions}>
@@ -165,4 +197,6 @@ const styles = StyleSheet.create({
   noteText: { ...type.body, color: color.ink },
   hold: { ...type.caption, color: color.textSecondary },
   actions: { gap: 10 },
+  smallRow: { flexDirection: 'row', justifyContent: 'center', gap: 28, paddingTop: 6 },
+  smallLink: { ...type.label, color: color.textSecondary },
 });
