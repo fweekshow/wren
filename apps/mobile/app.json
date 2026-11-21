@@ -26,7 +26,11 @@
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/logo.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -42,6 +46,12 @@
       "expo-font",
       "expo-apple-authentication",
       "expo-notifications"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b31f6e45-f776-46d8-acb1-dd5fe3f48242"
+      }
+    },
+    "owner": "mateo12121"
   }
 }

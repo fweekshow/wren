@@ -6,6 +6,7 @@ import {
   listPublicMuseStocks,
   MuseCheckoutError,
 } from "@/api/museCheckout.service.js";
+import { cardFor, claimLink } from "@/people/wrenClaim.js";
 import { publicMuseSend } from "@/api/muse.status.js";
 import { config } from "@/config/config.js";
 import { logger } from "@/utils/logger.js";
@@ -110,7 +111,16 @@ async function getSend(req: Request, res: Response): Promise<void> {
       return;
     }
     res.setHeader("Cache-Control", "no-store");
-    res.json(publicMuseSend(row));
+    const base = publicMuseSend(row);
+    // Wren: the /c/ link the sender texts (claim recipients, once sent), and
+    // where the claim stands. Failures here never break the status.
+    let shareUrl: string | null = null;
+    let claimState: string | null = null;
+    if (base.status === "sent" && !base.alreadyOnBasemate) {
+      shareUrl = await claimLink(row.id).catch(() => null);
+      claimState = await cardFor(row).then((c) => c.state).catch(() => null);
+    }
+    res.json({ ...base, shareUrl, claimState });
   } catch (err) {
     logger.error({ err }, "GET /api/muse/sends/:id");
     res.status(500).json({ error: "Could not load that send." });

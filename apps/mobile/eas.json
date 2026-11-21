@@ -20,7 +20,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_WREN_API_HOST": "",
+        "EXPO_PUBLIC_WREN_API_HOST": "https://wren-production-a91c91ca.up.railway.app",
         "EXPO_PUBLIC_PRIVY_APP_ID": "cmwev1xps009l0hl21bzt98i3",
         "EXPO_PUBLIC_PRIVY_SIGNER_ID": "rc6gwj7n1pglcf69l8pia5di"
       }
@@ -28,7 +28,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_WREN_API_HOST": "",
+        "EXPO_PUBLIC_WREN_API_HOST": "https://wren-production-a91c91ca.up.railway.app",
         "EXPO_PUBLIC_PRIVY_APP_ID": "cmwev1xps009l0hl21bzt98i3",
         "EXPO_PUBLIC_PRIVY_SIGNER_ID": "rc6gwj7n1pglcf69l8pia5di"
       }

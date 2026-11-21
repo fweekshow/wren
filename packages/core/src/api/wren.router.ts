@@ -16,6 +16,8 @@ import {
   type Visibility,
 } from "@/people/wrenPeople.js";
 import { listActivity, recordBuy } from "@/people/wrenActivity.js";
+import { cardFor, giftForCode, wrenPublicOrigin } from "@/people/wrenClaim.js";
+import { cardPng, claimPageHtml } from "@/people/wrenClaimPage.js";
 import { wrenSendCharge } from "@/discovery/stocks/giftStock.service.js";
 import {
   startPriceHistoryJob,
@@ -262,6 +264,53 @@ router.get("/terms", (_req, res) => {
 });
 router.get("/privacy", (_req, res) => {
   res.type("html").send(privacyHtml);
+});
+
+// ── Claim links ─────────────────────────────────────────────────────────────
+// Public: /c/<code> unfurls into a card in iMessage/WhatsApp and opens Wren.
+// Nothing here completes a claim; signing into Wren with the number does.
+const notFoundHtml = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Wren</title></head><body style="font-family:-apple-system,sans-serif;padding:40px 24px"><h1>This link isn't valid.</h1><p>Ask whoever sent it for a new one.</p></body></html>`;
+
+router.get("/c/:code", async (req: Request, res: Response) => {
+  try {
+    const row = await giftForCode(String(req.params.code));
+    if (!row) {
+      res.status(404).type("html").send(notFoundHtml);
+      return;
+    }
+    const card = await cardFor(row);
+    const pageUrl = `${wrenPublicOrigin()}/c/${req.params.code}`;
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.type("html").send(
+      claimPageHtml({
+        card,
+        pageUrl,
+        // The state is in the image URL so a claimed card gets a fresh image.
+        imageUrl: `${pageUrl}/card.png?v=${card.state}`,
+        appUrl: `wren://g/${row.id}`,
+        downloadUrl: process.env.WREN_DOWNLOAD_URL?.trim() || null,
+      }),
+    );
+  } catch (err) {
+    logger.error({ err }, "GET /c/:code");
+    res.status(500).type("html").send(notFoundHtml);
+  }
+});
+
+router.get("/c/:code/card.png", async (req: Request, res: Response) => {
+  try {
+    const row = await giftForCode(String(req.params.code));
+    if (!row) {
+      res.status(404).end();
+      return;
+    }
+    const png = await cardPng(await cardFor(row));
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.type("png").send(png);
+  } catch (err) {
+    logger.error({ err }, "GET /c/:code/card.png");
+    res.status(500).end();
+  }
 });
 
 // ── Buy for yourself ────────────────────────────────────────────────────────

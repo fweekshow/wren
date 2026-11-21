@@ -364,6 +364,10 @@ export type GiftStatus = {
   tellSender?: string | null;
   txHash?: string | null;
   claimUrl?: string | null;
+  /** Wren's /c/ link: unfurls into a card and opens the app. */
+  shareUrl?: string | null;
+  /** waiting | claimed | returned | sending (claim recipients only). */
+  claimState?: string | null;
   amountLabel?: string;
   stockLabel?: string | null;
   holdHours?: number | null;
@@ -376,6 +380,8 @@ type RawStatusResponse = {
   tellSender?: string | null;
   txHash?: string | null;
   claimUrl?: string | null;
+  shareUrl?: string | null;
+  claimState?: string | null;
   amountLabel?: string;
   stockLabel?: string | null;
   holdHours?: number;
@@ -393,6 +399,8 @@ export async function getGiftStatus(giftId: string): Promise<GiftStatus> {
     tellSender: raw.tellSender ?? null,
     txHash: raw.txHash ?? null,
     claimUrl: raw.claimUrl ?? null,
+    shareUrl: raw.shareUrl ?? null,
+    claimState: raw.claimState ?? null,
     amountLabel: raw.amountLabel,
     stockLabel: raw.stockLabel ?? null,
     holdHours: typeof raw.holdHours === 'number' ? raw.holdHours : null,
