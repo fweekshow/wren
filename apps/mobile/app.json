@@ -17,7 +17,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.basemate.wren",
       "infoPlist": {
-        "NSContactsUsageDescription": "So you can pick who to send to."
+        "NSContactsUsageDescription": "So you can pick who to send to.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

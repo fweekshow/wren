@@ -146,7 +146,7 @@ export function SignInScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.fill} behavior={undefined}>
         {phase === 'welcome' ? (
           <>
             <TopBar>
