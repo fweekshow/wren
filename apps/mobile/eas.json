@@ -37,7 +37,8 @@
   "submit": {
     "production": {
       "ios": {
-        "bundleIdentifier": "app.basemate.wren"
+        "bundleIdentifier": "app.basemate.wren",
+        "ascAppId": "6837721025"
       }
     }
   }

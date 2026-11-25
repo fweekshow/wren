@@ -1,6 +1,6 @@
 // Connect: "Where do your people text?" Two bubble tiles, iMessage and
 // WhatsApp. Tapping one opens that app with Wren's text ready
-// ("Turn on Wren · 4F2K9Q"); the channel turns on when the text lands.
+// ("Hey Wren 👋 my code is 4F2K9Q"); the channel turns on when the text lands.
 //
 // Three modes:
 // - onboarding: after phone sign-in, once.

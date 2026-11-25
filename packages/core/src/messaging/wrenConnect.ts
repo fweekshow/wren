@@ -1,5 +1,5 @@
 // Connect codes: the one text a person sends Wren to turn on iMessage or
-// WhatsApp. The app pre-fills "Turn on Wren · 4F2K9Q"; when it lands, the
+// WhatsApp. The app pre-fills "Hey Wren 👋 my code is 4F2K9Q"; when it lands, the
 // channel is on for the number it came from.
 //
 // It also finishes sign-in outside the US. Those people sign in with Privy
@@ -90,45 +90,66 @@ export async function createConnectCode(
 }
 
 export function connectPrefill(code: string | null): string {
-  return code ? `Turn on Wren · ${code}` : "Chirp";
+  return code ? `Hey Wren 👋 my code is ${code}` : "Chirp";
 }
 
-/** "Chirp" (older builds) or "Turn on Wren · CODE". */
+// A short text that mentions Wren and carries a code in capitals, e.g.
+// "Hey Wren 👋 my code is 47RW8M" or the older "Turn on Wren · 47RW8M".
+const CODE_TOKEN = new RegExp(`(?:^|[^A-Za-z0-9])([${ALPHABET}]{${CODE_LENGTH}})(?![A-Za-z0-9])`);
+
+/** "Chirp" (older builds), or a short text mentioning Wren with a connect code. */
 export function parseConnectText(text: string): { matched: boolean; code: string | null } {
   const trimmed = text.trim();
   if (trimmed.toLowerCase() === "chirp") return { matched: true, code: null };
-  const match = /^turn on wren\b[\s·:.\-–—]*([a-z0-9]{6})?[\s.]*$/i.exec(trimmed);
-  if (!match) return { matched: false, code: null };
-  return { matched: true, code: match[1] ? match[1].toUpperCase() : null };
+  if (/^turn on wren[\s.!]*$/i.test(trimmed)) return { matched: true, code: null };
+  if (trimmed.length > 80 || !/\bwren\b/i.test(trimmed)) return { matched: false, code: null };
+  const match = CODE_TOKEN.exec(trimmed);
+  return match ? { matched: true, code: match[1]! } : { matched: false, code: null };
 }
 
-/** Called for every inbound text. Returns true when it was a connect text. */
+export type ConnectCapture = "not-connect" | "on" | "bad-code";
+
+/**
+ * Called for every inbound text that might be a connect text. Anything that
+ * parses as one gets a reply from Wren, never the assistant.
+ */
 export async function captureConnectText(args: {
   senderId: string;
   text: string;
   channel: Channel;
   service?: string | null;
   displayName?: string | null;
-}): Promise<boolean> {
+}): Promise<ConnectCapture> {
   const parsed = parseConnectText(args.text);
-  if (!parsed.matched) return false;
+  if (!parsed.matched) return "not-connect";
   const phone = canonicalizeSenderId(args.senderId);
+  let codeUsed = false;
   if (parsed.code) {
     try {
-      await consumeConnectCode(parsed.code, phone, args.channel);
+      codeUsed = await consumeConnectCode(parsed.code, phone, args.channel);
     } catch (err) {
       logger.warn({ err }, "wren connect code");
     }
   }
-  return markOptIn({
+  const optedIn = await markOptIn({
     phone,
     channel: args.channel,
     service: args.service ?? null,
     displayName: args.displayName ?? null,
   });
+  if (!codeUsed && !optedIn) return parsed.code ? "bad-code" : "not-connect";
+  return "on";
 }
 
-async function consumeConnectCode(code: string, phone: string, channel: Channel): Promise<void> {
+/** What Wren texts back. */
+export function connectReply(result: Exclude<ConnectCapture, "not-connect">): string {
+  return result === "on"
+    ? "You're all set 👋 Stocks people send you on Wren will land right here."
+    : "Hmm, that code didn't work. Open Wren and tap the chat again for a fresh one.";
+}
+
+/** True when the code was valid and is now used. */
+async function consumeConnectCode(code: string, phone: string, channel: Channel): Promise<boolean> {
   await ensureTable();
   // A signed-in person's code only counts from their own number.
   const result = await db.query<{
@@ -147,7 +168,8 @@ async function consumeConnectCode(code: string, phone: string, channel: Channel)
     [code, phone, channel],
   );
   const row = result.rows[0];
-  if (!row || row.owner_phone || !row.privy_user_id) return;
+  if (!row) return false;
+  if (row.owner_phone || !row.privy_user_id) return true;
 
   // Email sign-in: this number becomes the account.
   if (row.address?.startsWith("0x")) {
@@ -161,6 +183,7 @@ async function consumeConnectCode(code: string, phone: string, channel: Channel)
     await WalletAdapter.ensureProfile(await WalletAdapter.resolveSenderKey(phone));
   }
   await setPrivyUserId(phone, row.privy_user_id);
+  return true;
 }
 
 export type PollResult =

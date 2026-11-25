@@ -379,16 +379,16 @@ export function createImessageHandler(
       groupParticipants = [],
     } = params;
     let { text } = params;
-    if (/^\s*(chirp|turn on wren\b.*)\s*$/i.test(text)) {
-      const { captureConnectText } = await import("@/messaging/wrenConnect.js");
+    if (/\b(chirp|wren)\b/i.test(text)) {
+      const { captureConnectText, connectReply } = await import("@/messaging/wrenConnect.js");
       const captured = await captureConnectText({
         senderId,
         text,
         channel: platform === "whatsapp" ? "whatsapp" : "imessage",
         service: platform === "whatsapp" ? null : "iMessage",
       });
-      if (captured) {
-        return [singleBubbleTextOutbound("You're on Wren. Stocks people send you land here.")];
+      if (captured !== "not-connect") {
+        return [singleBubbleTextOutbound(connectReply(captured))];
       }
     }
     const outbound: ImessageOutbound[] = [];
