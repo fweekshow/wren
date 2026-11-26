@@ -23,6 +23,7 @@ import { applyKey, Keypad } from '../components/Keypad';
 import { Button } from '../components/Button';
 import { HeaderBack } from '../components/HeaderBack';
 import { PayCard, topUpFor } from '../components/PayCard';
+import { FeesLine } from '../components/FeesLine';
 import {
   getGiftStatus,
   getPortfolio,
@@ -240,25 +241,21 @@ export function AmountScreen({ person, phone, initialSymbol, onBack, onSent, onC
       </View>
       <View style={styles.footer}>
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {numeric > 0 && quote && quote.stockUsd === Math.round(numeric * 100) / 100 ? (
+          // The price before Pay, never a surprise after. Card fees live on the Pay card.
+          <FeesLine
+            totalUsd={chargeUsd ?? quote.totalUsd}
+            fees={[{ label: copy.sendFee, usd: quote.feeUsd }]}
+            freeNote={quote.firstSend ? copy.sendFeeFree : undefined}
+          />
+        ) : null}
         {shortBy > 0 ? (
           <Text style={styles.total}>
             {copy.notEnoughCashSend(usd2(short?.cashUsd ?? cash ?? 0), usd2(Math.max(shortBy, 0.01)))}
           </Text>
-        ) : numeric > 0 && quote && quote.stockUsd === Math.round(numeric * 100) / 100 && (
-          // The price before Pay, never a surprise after.
-          <Text style={styles.total}>
-            {[
-              `${copy.total} ${usd2(chargeUsd ?? quote.totalUsd)}`,
-              quote.firstSend ? copy.firstSendFree : copy.toSend(usd2(quote.feeUsd)),
-              quote.cardUsd > 0 ? copy.cardCost(usd2(quote.cardUsd)) : null,
-              copy.fromYourCash,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </Text>
-        )}
+        ) : null}
         {shortBy > 0 && phase === 'edit' ? (
-          <Button onPress={() => setPaying(true)}>{`${copy.pay} ${usd2(topUpFor(shortBy))}`}</Button>
+          <Button onPress={() => setPaying(true)}>{copy.addAmount(usd2(topUpFor(shortBy)))}</Button>
         ) : (
         <Button
           disabled={phase === 'posting' || phase === 'waiting' || (phase === 'edit' && !(numeric > 0 && !!symbol))}
@@ -272,6 +269,13 @@ export function AmountScreen({ person, phone, initialSymbol, onBack, onSent, onC
       <PayCard
         visible={paying}
         amount={topUpFor(Math.max(shortBy, 0.01))}
+        headline={numeric}
+        note={[
+          quote ? (quote.firstSend ? copy.firstSendFree : copy.plusSendFee(usd2(quote.feeUsd))) : null,
+          (cash ?? 0) >= 0.01 ? copy.fromCashPart(usd2(cash ?? 0)) : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
         onClose={() => setPaying(false)}
         onPaid={(c) => {
           setPaying(false);

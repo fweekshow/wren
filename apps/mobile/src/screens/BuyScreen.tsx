@@ -14,6 +14,7 @@ import { Presets } from '../components/Presets';
 import { applyKey, Keypad } from '../components/Keypad';
 import { Button } from '../components/Button';
 import { PayCard, topUpFor } from '../components/PayCard';
+import { FeesLine } from '../components/FeesLine';
 import { buyStock, BuyResult, getPortfolio, getStocks, notEnoughCash, Stock } from '../api';
 import { copy } from '../copy';
 import { usd2 } from '../fees';
@@ -110,17 +111,12 @@ export function BuyScreen({ initialSymbol, onBack, onBought, onChangeStock }: Pr
             {copy.notEnoughCash(usd2(short?.cashUsd ?? cash ?? 0), usd2(Math.max(shortBy, 0.01)))}
           </Text>
         ) : numeric > 0 ? (
-          <Text style={styles.note}>
-            <Text style={{ color: color.ink }}>
-              {copy.total} {usd2(numeric)}
-            </Text>
-            {` · ${copy.noWrenFee} · ${copy.fromYourCash}`}
-          </Text>
+          <FeesLine totalUsd={numeric} fees={[]} freeNote={copy.fromYourCash} />
         ) : cash != null ? (
           <Text style={styles.note}>{copy.cashHave(usd2(cash))}</Text>
         ) : null}
         {needsCash ? (
-          <Button onPress={() => setPaying(true)}>{`${copy.pay} ${usd2(topUp)}`}</Button>
+          <Button onPress={() => setPaying(true)}>{copy.addAmount(usd2(topUp))}</Button>
         ) : (
           <Button disabled={!symbol || !(numeric > 0)} loading={busy} onPress={() => void buy()}>
             {busy ? copy.buying : copy.buy}
@@ -130,6 +126,8 @@ export function BuyScreen({ initialSymbol, onBack, onBought, onChangeStock }: Pr
       <PayCard
         visible={paying}
         amount={topUp}
+        headline={numeric}
+        note={(cash ?? 0) >= 0.01 ? copy.fromCashPart(usd2(cash ?? 0)) : undefined}
         onClose={() => setPaying(false)}
         onPaid={(c) => {
           setPaying(false);

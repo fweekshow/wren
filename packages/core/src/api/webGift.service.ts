@@ -54,7 +54,7 @@ export async function createWebStockGiftCheckout(input: {
   memo?: string;
   recipient: { name?: string; phone?: string; contactId?: number };
   saveContact?: boolean;
-  /** "wren": flat $2.99 per send, first send free. Default: Basemate's 1%. */
+  /** "wren": 1.5% per send, at least $0.99, first send free. Default: Basemate's 1%. */
   pricing?: "wren";
   /** "cash": spend USDC already in the account; no card checkout. */
   payFrom?: "card" | "cash";

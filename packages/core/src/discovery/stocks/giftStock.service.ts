@@ -117,14 +117,18 @@ export function giftChargeUsd(
 }
 
 // ── Wren pricing ─────────────────────────────────────────────────────────────
-// Wren charges a flat $2.99 per send, and the first send is free. Buying for
-// yourself has no Wren fee. The card cost (Coinbase's ~2.5%) is passed through
-// at cost. Basemate keeps the 1% fee above; Wren sends save their fee on the
-// gift intent (intent.feeUsd) so fulfilment never recomputes 1% for them.
-export const WREN_SEND_FEE_USD = 2.99;
+// Wren charges 1.5% to send, at least $0.99, and the first send is free.
+// Buying for yourself has no Wren fee. The card cost (Coinbase's ~2.5%) is
+// passed through at cost and shown as its own line. Basemate keeps the 1% fee
+// above; Wren sends save their fee on the gift intent (intent.feeUsd) so
+// fulfilment never recomputes 1% for them.
+export const WREN_SEND_FEE_BPS = 150;
+export const WREN_SEND_FEE_MIN_USD = 0.99;
 
-export function wrenSendFeeUsd(opts: { firstSend: boolean }): number {
-  return opts.firstSend ? 0 : WREN_SEND_FEE_USD;
+export function wrenSendFeeUsd(opts: { firstSend: boolean; stockUsd: number }): number {
+  if (opts.firstSend) return 0;
+  const pct = Math.round(Math.max(0, opts.stockUsd) * WREN_SEND_FEE_BPS) / 10_000;
+  return roundUsd(Math.max(WREN_SEND_FEE_MIN_USD, pct));
 }
 
 /** What a Wren send costs. Card total is never below Coinbase's $2 floor. */
@@ -133,7 +137,7 @@ export function wrenSendCharge(
   opts: { firstSend: boolean },
 ): { stockUsd: number; feeUsd: number; usdcNeeded: number; cardUsd: number; totalUsd: number } {
   const stockUsd = roundUsd(Math.max(0, stockUsdIn));
-  const feeUsd = wrenSendFeeUsd(opts);
+  const feeUsd = wrenSendFeeUsd({ ...opts, stockUsd });
   const usdcNeeded = roundUsd(stockUsd + feeUsd);
   const totalUsd = Math.max(ceilUsd(usdcNeeded / (1 - ONRAMP_GROSS_BPS / 10_000)), ONRAMP_MIN_USD);
   return { stockUsd, feeUsd, usdcNeeded, cardUsd: roundUsd(totalUsd - usdcNeeded), totalUsd };

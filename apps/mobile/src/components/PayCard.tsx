@@ -62,16 +62,21 @@ true;
 /** Coinbase's Apple Pay minimum. */
 export const APPLE_PAY_MIN_USD = 5;
 
-/** How much to add to cover `shortUsd`: a little over (Coinbase can take a fee), whole dollars, $5 minimum. */
+/** Cash to add to cover `shortUsd`: exactly that (fees are on top), $5 minimum. */
 export function topUpFor(shortUsd: number): number {
-  return Math.max(APPLE_PAY_MIN_USD, Math.ceil(shortUsd * 1.03));
+  return Math.max(APPLE_PAY_MIN_USD, Math.ceil(shortUsd * 100 - 1e-6) / 100);
 }
 
 type Step = 'choose' | 'email' | 'code' | 'opening' | 'waiting' | 'slow';
 
 type Props = {
   visible: boolean;
+  /** Cash to add (the exact shortfall). What the card charges is shown by Apple Pay / the card sheet. */
   amount: number;
+  /** What the person picked, e.g. the $50 of stock. Defaults to `amount`. */
+  headline?: number;
+  /** One line under it, e.g. "+ $0.99 send fee". */
+  note?: string;
   onClose: () => void;
   /** Cash arrived; `cash` is the new balance. */
   onPaid: (cash: number) => void;
@@ -80,7 +85,7 @@ type Props = {
 const WAIT_MS = 120_000;
 const POLL_MS = 3000;
 
-export function PayCard({ visible, amount, onClose, onPaid }: Props) {
+export function PayCard({ visible, amount, headline, note, onClose, onPaid }: Props) {
   const insets = useSafeAreaInsets();
   const wallets = useEmbeddedEthereumWallet();
   const { fundWallet } = useFundWallet();
@@ -122,6 +127,7 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
     return () => {
       alive.current = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const waitForCash = useCallback(async () => {
@@ -324,11 +330,14 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
         }}
       />
       <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
-        <Text style={styles.title}>{copy.payTitle(amountLabel)}</Text>
+        {/* What they picked, and the one fee that's ours. Card fees show on the Apple Pay / card sheet. */}
+        <View>
+          <Text style={styles.amount}>{usd2(headline ?? amount)}</Text>
+          {note ? <Text style={styles.sub}>{note}</Text> : null}
+        </View>
 
         {step === 'choose' && (
           <>
-            <Text style={styles.sub}>{copy.paySub(amountLabel)}</Text>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.actions}>
               {!appleOff && (
@@ -454,6 +463,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: { ...type.titleSm, color: color.ink },
+  amount: { ...type.tileValue, color: color.ink },
   sub: { ...type.bodyRegular, color: color.textSecondary },
   actions: { gap: 10, marginTop: 4 },
   terms: { ...type.caption, color: color.textSecondary, textAlign: 'center' },
