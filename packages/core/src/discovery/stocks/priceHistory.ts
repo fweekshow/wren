@@ -19,6 +19,7 @@ import { db } from "@/discovery/db.js";
 import { listSpotBuyableOffers } from "@/discovery/doppler/stockCatalog.js";
 import { isUsEquityMarketHours, resolveStockToken } from "@/discovery/doppler/stockRegistry.js";
 import { liveSharePriceUsd } from "@/discovery/stocks/giftStock.service.js";
+import { navFeeds, withNavFeed } from "@/discovery/stocks/navFeeds.js";
 import { logger } from "@/utils/logger.js";
 
 export type PriceRange = "1D" | "1W" | "1M" | "1Y";
@@ -85,9 +86,12 @@ export async function snapshotStockPrices(now = new Date()): Promise<number> {
   await ensureTable();
   const slot = new Date(Math.floor(now.getTime() / SNAPSHOT_SLOT_MS) * SNAPSHOT_SLOT_MS);
   const rows: { symbol: string; at: Date; price: number; source: string }[] = [];
+  const feeds = await navFeeds();
   for (const offer of listSpotBuyableOffers()) {
-    const entry = resolveStockToken(offer.symbol);
-    if (!entry) continue;
+    const resolved = resolveStockToken(offer.symbol);
+    if (!resolved) continue;
+    // A feed Coinbase added after the catalog was written is used right away.
+    const entry = { ...resolved, feedAddress: feeds.get(resolved.address.toLowerCase()) ?? resolved.feedAddress };
     const live = await liveSharePriceUsd(entry).catch(() => null);
     if (!live) continue;
     // Chainlink pauses when the US market is closed. Without a live pool price,
@@ -161,8 +165,10 @@ export async function backfillStockFromChainlink(symbol: string): Promise<number
   const done = await db.query(`SELECT 1 FROM stock_price_backfills WHERE symbol = $1`, [symbol]);
   if (done.rows.length) return 0;
   const entry = resolveStockToken(symbol);
-  if (!entry?.feedAddress) return 0;
-  const feed = entry.feedAddress as Address;
+  if (!entry) return 0;
+  // Coinbase's official feed list first, so a newly added feed backfills too.
+  const feed = ((await navFeeds()).get(entry.address.toLowerCase()) ?? entry.feedAddress) as Address | null;
+  if (!feed) return 0;
   const c = client();
   const cutoffSec = Math.floor((Date.now() - BACKFILL_DAYS * 86_400_000) / 1000);
 
@@ -282,29 +288,31 @@ export function dropRepeats(points: [number, number][]): [number, number][] {
 }
 
 // ── Which stocks Wren can price ────────────────────────────────────────────
-// Some catalog stocks have no Chainlink feed and no Aerodrome pool, so quotes
-// fail. A stock is shown only if a price was saved for it in the last 4 days;
-// it comes back by itself once Coinbase adds a feed or pool.
+// A stock is shown only if it has a Chainlink feed on Coinbase's official
+// list (navFeeds.ts) and a price was saved for it in the last 4 days. Stocks
+// with only an Aerodrome pool can sit at a stale price nobody trades, so they
+// stay hidden; one comes back by itself once Coinbase publishes its feed.
 const PRICEABLE_WINDOW = "4 days";
 let priceableCache: { at: number; symbols: Set<string> | null } | null = null;
 
 /**
- * Symbols with a recent saved price, or null when that can't be known yet
- * (no snapshots so far, or the database is unreachable). Callers show
- * everything on null so the list is never empty by mistake.
+ * Symbols with a Chainlink feed and a recent saved price. When saved prices
+ * can't be known yet (no snapshots so far, or the database is unreachable),
+ * every stock with a feed, so the list is never empty by mistake.
  */
 export async function priceableSymbols(): Promise<Set<string> | null> {
   if (priceableCache && Date.now() - priceableCache.at < 5 * 60_000) return priceableCache.symbols;
-  let symbols: Set<string> | null = null;
+  const withFeed = new Set(withNavFeed(listSpotBuyableOffers(), await navFeeds()).map((o) => o.symbol));
+  let symbols: Set<string>;
   try {
     await ensureTable();
     const { rows } = await db.query(
       `SELECT DISTINCT symbol FROM stock_prices WHERE at > NOW() - INTERVAL '${PRICEABLE_WINDOW}'`,
     );
-    const found = new Set((rows as { symbol: string }[]).map((r) => r.symbol));
-    symbols = found.size ? found : null;
+    const found = new Set((rows as { symbol: string }[]).map((r) => r.symbol).filter((s) => withFeed.has(s)));
+    symbols = found.size ? found : withFeed;
   } catch {
-    symbols = null;
+    symbols = withFeed;
   }
   priceableCache = { at: Date.now(), symbols };
   return symbols;
