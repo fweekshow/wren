@@ -27,8 +27,9 @@ export const color = {
   wrenBelly: '#BCCDFB',
   wrenTint: '#E3EAFE',
 
-  // Semantic. Nov 21 2026 (Wren Color): a move is an arrow on lime or
-  // coral, never a solid red pill; on a colored card it takes the card's ink.
+  // Semantic. A move is an arrow and percent in moveUpInk (green) or
+  // moveDownInk (red); on a colored card, inside a small white pill.
+  // moveUp/moveDown (lime/coral) stay for fills elsewhere.
   moveUp: '#C6F432',
   moveDown: '#FFB199',
   moveUpInk: '#2E9E00',

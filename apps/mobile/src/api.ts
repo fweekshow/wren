@@ -295,10 +295,40 @@ export function getSendQuote(usd: number, payFrom: PayFrom = 'card'): Promise<Se
   return request<SendQuote>('/api/app/send-quote', { query: { usd, payFrom } });
 }
 
-export type PayMethod = 'apple' | 'card' | 'bank';
+// ---------- Apple Pay (Coinbase) ----------
+// POST /api/app/apple-pay { amount } → { url } for Coinbase's Apple Pay page,
+// loaded in a WebView. 409 need_email / need_email_code until the email is
+// verified once (POST /api/app/apple-pay/email, then /verify).
 
-export async function startPay(method: PayMethod, amount: number): Promise<void> {
-  await request('/api/app/pay', { method: 'POST', json: { method, amount } });
+export type ApplePayStart = { url: string; orderId: string | null };
+
+export async function startApplePay(amount: number): Promise<ApplePayStart> {
+  const raw = await request<{ url?: string; orderId?: string | null }>('/api/app/apple-pay', {
+    method: 'POST',
+    json: { amount },
+  });
+  if (!raw.url) throw new ApiError('Bad response from server.', 500, raw);
+  return { url: raw.url, orderId: raw.orderId ?? null };
+}
+
+export async function sendApplePayEmail(email: string): Promise<void> {
+  await request('/api/app/apple-pay/email', { method: 'POST', json: { email } });
+}
+
+export async function verifyApplePayEmail(code: string): Promise<void> {
+  await request('/api/app/apple-pay/verify', { method: 'POST', json: { code } });
+}
+
+/** The server's error code (`{ error: "need_email" }`), if any. */
+export function apiErrorCode(err: unknown): string | null {
+  if (!(err instanceof ApiError)) return null;
+  const body = err.body as { error?: unknown } | null;
+  return typeof body?.error === 'string' ? body.error : null;
+}
+
+/** Cash (USDC) in the account, in dollars. */
+export async function getCash(): Promise<number> {
+  return (await getPortfolio([])).cash;
 }
 
 export async function sendGift(req: GiftRequest): Promise<{ giftId: string; chargeUsd: number }> {
@@ -309,7 +339,7 @@ export async function sendGift(req: GiftRequest): Promise<{ giftId: string; char
       symbol: req.symbol,
       usd: String(req.usd),
       recipient: { name: req.recipient.name, phone: req.recipient.phone },
-      payFrom: req.payFrom ?? 'card',
+      payFrom: 'cash',
     },
   });
   if (!raw.giftId || typeof raw.chargeUsd !== 'number') {

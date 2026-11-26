@@ -7,6 +7,7 @@ import { ensureWrenColumns, phoneForPrivyUser, setPrivyUserId } from "@/messagin
 import { connectPrefill, createConnectCode } from "@/messaging/wrenConnect.js";
 import { createPortfolioAccessToken } from "@/portfolio/access.js";
 import { logger } from "@/utils/logger.js";
+import { OnrampUserDataAdapter } from "@/wallet/onrampUserData.js";
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -77,6 +78,27 @@ async function privyUser(userId: string): Promise<PrivyUser> {
   return (await res.json()) as PrivyUser;
 }
 
+/**
+ * Coinbase's Apple Pay needs a phone verified within 60 days and a verified
+ * email. A Privy SMS sign-in verifies the phone right now; a Privy email
+ * account is already code-verified, so it can fill in the email.
+ */
+async function stampOnrampVerification(
+  phone: string,
+  accounts: NonNullable<PrivyUser["linked_accounts"]>,
+  phoneFromSms: boolean,
+): Promise<void> {
+  const now = new Date();
+  const existing = await OnrampUserDataAdapter.get(phone);
+  const privyEmail = accounts.find((a) => a.type === "email" && a.address?.includes("@"))?.address;
+  const takeEmail = Boolean(privyEmail) && !existing?.emailVerifiedAt;
+  if (!phoneFromSms && !takeEmail) return;
+  await OnrampUserDataAdapter.upsert(phone, {
+    ...(phoneFromSms ? { phoneVerifiedAt: now } : {}),
+    ...(takeEmail ? { email: privyEmail!.toLowerCase(), emailVerifiedAt: now } : {}),
+  });
+}
+
 export async function privySession(req: Request, res: Response): Promise<void> {
   const accessToken = typeof req.body?.accessToken === "string" ? req.body.accessToken.trim() : "";
   const hintedAddress = typeof req.body?.address === "string" ? req.body.address.trim() : "";
@@ -135,6 +157,9 @@ export async function privySession(req: Request, res: Response): Promise<void> {
       });
       await setPrivyUserId(phone, privyId);
     }
+    await stampOnrampVerification(phone, accounts, Boolean(phoneAccount)).catch((err) =>
+      logger.warn({ err }, "[privy-session] onramp verification stamp failed"),
+    );
     const token = createPortfolioAccessToken(phone, { ttlMs: SESSION_TTL_MS });
     res.setHeader("Cache-Control", "no-store");
     res.json({

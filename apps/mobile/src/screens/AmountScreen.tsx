@@ -1,14 +1,13 @@
 // Amount: the amount as your blue bubble ("To Maya" under it, like a sent
 // text), then stock pills (scrolling), presets, keypad.
-// Pay from cash (in your Wren account, no card cost) or Apple Pay / card.
-// Cash is picked first when you have some. Not enough cash → "You have $20
-// in cash. Add $30, or pay by card." with Add cash. If the request fails, we
-// restore Pay and say "That didn't go through."
+// Sends always pay from cash (in your Wren account, no card cost). Not enough
+// cash → "You have $20 in cash. Add $30 to send this." and the button becomes
+// Pay $31: the Pay card adds the cash (Apple Pay or card), then it sends.
+// If the request fails, we restore Pay and say "That didn't go through."
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -23,6 +22,7 @@ import { Presets } from '../components/Presets';
 import { applyKey, Keypad } from '../components/Keypad';
 import { Button } from '../components/Button';
 import { HeaderBack } from '../components/HeaderBack';
+import { PayCard, topUpFor } from '../components/PayCard';
 import {
   getGiftStatus,
   getPortfolio,
@@ -30,9 +30,7 @@ import {
   getStocks,
   notEnoughCash,
   sendGift,
-  startPay,
   Stock,
-  type PayMethod,
   type SendQuote,
 } from '../api';
 import { copy } from '../copy';
@@ -44,7 +42,6 @@ type Props = {
   person: Person;
   phone: string; // E.164
   initialSymbol?: string;
-  onAddCash: () => void;
   onBack: () => void;
   onSent: (result: { giftId: string; usd: number; symbol: string }) => void;
   onChangeStock: () => void;
@@ -52,9 +49,7 @@ type Props = {
 
 type Phase = 'edit' | 'posting' | 'waiting' | 'error';
 
-type Method = PayMethod | 'cash';
-
-export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, onSent, onChangeStock }: Props) {
+export function AmountScreen({ person, phone, initialSymbol, onBack, onSent, onChangeStock }: Props) {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [symbol, setSymbol] = useState<string | undefined>(initialSymbol);
   // Change → the stock picker → back here with the new pick.
@@ -67,7 +62,7 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
   const [phase, setPhase] = useState<Phase>('edit');
   const [error, setError] = useState<string | null>(null);
   const [chargeUsd, setChargeUsd] = useState<number | null>(null);
-  const [payMethod, setPayMethod] = useState<Method>('apple');
+  const [paying, setPaying] = useState(false);
   const { width } = useWindowDimensions();
   const bubbleWidth = width - spacing.screenPad * 2;
 
@@ -82,7 +77,6 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
         const p = await getPortfolio(list).catch(() => null);
         if (cancelled || !p) return;
         setCash(p.cash);
-        if (p.cash >= 1) setPayMethod('cash');
       } catch {
         // Leave the picker empty; Continue stays disabled until we have a symbol.
       }
@@ -105,7 +99,7 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
     }
     let alive = true;
     const t = setTimeout(() => {
-      getSendQuote(numeric, payMethod === 'cash' ? 'cash' : 'card')
+      getSendQuote(numeric, 'cash')
         .then((q) => {
           if (alive) setQuote(q);
         })
@@ -117,7 +111,7 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
       alive = false;
       clearTimeout(t);
     };
-  }, [numeric, payMethod]);
+  }, [numeric]);
   const canContinue = numeric > 0 && !!symbol && phase === 'edit';
 
   // Poll /api/muse/sends/:id after the user heads to Safari. When status flips
@@ -174,15 +168,13 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
     Keyboard.dismiss();
     setPhase('posting');
     setError(null);
-    track('buy_started', { method: payMethod, symbol });
+    track('buy_started', { method: 'cash', symbol });
     try {
-      const fromCash = payMethod === 'cash';
-      if (!fromCash) await startPay(payMethod, numeric);
       const gift = await sendGift({
         symbol,
         usd: numeric,
         recipient: { name: person.firstName, phone },
-        payFrom: fromCash ? 'cash' : 'card',
+        payFrom: 'cash',
       });
       track('buy_succeeded', { giftId: gift.giftId });
       setChargeUsd(gift.chargeUsd);
@@ -199,7 +191,7 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
       setError(copy.didntGo);
       setPhase('error');
     }
-  }, [symbol, numeric, person.firstName, phone, startPolling, payMethod]);
+  }, [symbol, numeric, person.firstName, phone, startPolling]);
 
   // Restore Continue after an error on next edit.
   const edit = (next: string | ((s: string) => string)) => {
@@ -210,6 +202,10 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
     }
     setAmount((s) => (typeof next === 'function' ? next(s) : next));
   };
+
+  // Short on cash: what the server said (402), or what the quote says now.
+  const knownShortBy = cash != null && quote && numeric > 0 ? quote.totalUsd - cash : 0;
+  const shortBy = short ? short.neededUsd - short.cashUsd : knownShortBy > 0.005 ? knownShortBy : 0;
 
   const primaryLabel = phase === 'waiting' ? copy.stillWorking : phase === 'posting' ? '…' : copy.pay;
 
@@ -243,38 +239,10 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
         <Keypad keyHeight={50} onKey={(k) => edit((a) => applyKey(a, k))} />
       </View>
       <View style={styles.footer}>
-        {error ? (
-          <Text style={styles.error}>{error}</Text>
-        ) : (
-          <View style={styles.methods}>
-            {((cash ?? 0) > 0 ? ['cash', 'apple', 'card'] : ['apple', 'card', 'bank']).map((m) => {
-              const method = m as Method;
-              return (
-              <Pressable
-                key={method}
-                onPress={() => {
-                  setShort(null);
-                  setPayMethod(method);
-                }}
-                style={[styles.method, payMethod === method && styles.methodOn]}
-              >
-                <Text style={[styles.methodText, payMethod === method && styles.methodTextOn]}>
-                  {method === 'cash'
-                    ? `${copy.cash} ${usd2(cash ?? 0)}`
-                    : method === 'apple'
-                      ? copy.applePay
-                      : method === 'card'
-                        ? copy.card
-                        : copy.bank}
-                </Text>
-              </Pressable>
-              );
-            })}
-          </View>
-        )}
-        {short ? (
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {shortBy > 0 ? (
           <Text style={styles.total}>
-            {copy.notEnoughCashSend(usd2(short.cashUsd), usd2(Math.max(short.neededUsd - short.cashUsd, 0.01)))}
+            {copy.notEnoughCashSend(usd2(short?.cashUsd ?? cash ?? 0), usd2(Math.max(shortBy, 0.01)))}
           </Text>
         ) : numeric > 0 && quote && quote.stockUsd === Math.round(numeric * 100) / 100 && (
           // The price before Pay, never a surprise after.
@@ -283,14 +251,14 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
               `${copy.total} ${usd2(chargeUsd ?? quote.totalUsd)}`,
               quote.firstSend ? copy.firstSendFree : copy.toSend(usd2(quote.feeUsd)),
               quote.cardUsd > 0 ? copy.cardCost(usd2(quote.cardUsd)) : null,
-              payMethod === 'cash' ? copy.fromYourCash : null,
+              copy.fromYourCash,
             ]
               .filter(Boolean)
               .join(' · ')}
           </Text>
         )}
-        {short ? (
-          <Button onPress={onAddCash}>{copy.addCash}</Button>
+        {shortBy > 0 && phase === 'edit' ? (
+          <Button onPress={() => setPaying(true)}>{`${copy.pay} ${usd2(topUpFor(shortBy))}`}</Button>
         ) : (
         <Button
           disabled={phase === 'posting' || phase === 'waiting' || (phase === 'edit' && !(numeric > 0 && !!symbol))}
@@ -301,6 +269,17 @@ export function AmountScreen({ person, phone, initialSymbol, onAddCash, onBack, 
         </Button>
         )}
       </View>
+      <PayCard
+        visible={paying}
+        amount={topUpFor(Math.max(shortBy, 0.01))}
+        onClose={() => setPaying(false)}
+        onPaid={(c) => {
+          setPaying(false);
+          setCash(c);
+          setShort(null);
+          void onContinue();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -336,16 +315,6 @@ const styles = StyleSheet.create({
     bottom: spacing.homeIndicator,
     gap: 10,
   },
-  methods: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  method: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: color.card,
-  },
-  methodOn: { backgroundColor: color.ink },
-  methodText: { ...type.caption, color: color.textPrimary },
-  methodTextOn: { color: color.textOnAction },
   total: {
     ...type.caption,
     color: color.textSecondary,
