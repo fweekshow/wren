@@ -310,8 +310,19 @@ export async function priceableSymbols(): Promise<Set<string> | null> {
   return symbols;
 }
 
+/**
+ * Stocks the app lists: those with a Chainlink feed and, when known, a recent
+ * saved price. Stocks with no feed are priced only by their thin Aerodrome
+ * pool, which barely trades, so their price and "today" change sit flat:
+ * they stay hidden until Coinbase publishes a feed (set `feedAddress` in the
+ * catalog, or the env override) and then show up by themselves.
+ */
 export function onlyPriceable<T extends { symbol: string }>(items: T[], priceable: Set<string> | null): T[] {
-  return priceable ? items.filter((i) => priceable.has(i.symbol)) : items;
+  return items.filter((i) => hasChainlinkFeed(i.symbol) && (!priceable || priceable.has(i.symbol)));
+}
+
+export function hasChainlinkFeed(symbol: string): boolean {
+  return Boolean(resolveStockToken(symbol)?.feedAddress);
 }
 
 /** Every sendable stock with its latest price, change over 24h and a 1D sparkline. */
