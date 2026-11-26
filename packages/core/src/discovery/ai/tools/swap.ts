@@ -488,6 +488,9 @@ export const AERODROME_ROUTER_LP_ABI = [
 // invalid-address error and silently fall back to Uniswap.
 export const AERODROME_DEFAULT_FACTORY = "0x420DD381b31aEf6683db6B902084cB0FFECe40Da" as const satisfies Address;
 const USDC_BASE: Address = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const AERO_CL_FACTORY: Address = "0x9CB220581b91b0C83223012FE69688b92aD07a76";
+/** Tick spacings the Aero CL factory enables (`tickSpacings()` on-chain). */
+const AERO_CL_TICK_SPACINGS = [1, 10, 50, 100, 150, 200, 250] as const;
 const SLIPSTREAM_ROUTER_BY_FACTORY = new Map<string, Address>([
   [
     "0xf8f2eb4940cfe7d13603dddd87f123820fc061ef",
@@ -496,6 +499,13 @@ const SLIPSTREAM_ROUTER_BY_FACTORY = new Map<string, Address>([
   [
     "0x5e7bb104d84c7cb9b682aac2f3d509f5f406809a",
     "0xBE6D8f0d05cC4be24d5167a3eF062215bE6D18a5",
+  ],
+  // Aero (Dromos MetaDEX) CL factory. Every deep Coinbase-stock/USDC pool lives
+  // here. Router from dromos-labs/metadex-slipstream-public deployment-addresses/
+  // cl-base.json; on-chain factory() and WETH9() checked, same exactInputSingle.
+  [
+    AERO_CL_FACTORY.toLowerCase(),
+    "0x9Ee35Bf1bd69a03c6F0393582030fCe8Bb93D418",
   ],
 ]);
 
@@ -676,10 +686,104 @@ async function fetchSlipstreamUsdcPairMeta(
       if (!routerAddress) continue;
       return remember({ poolAddress, routerAddress, priceUsd: Number(pair.priceUsd), tickSpacing: Number(tickSpacing) });
     }
-    return remember(null);
+    // DexScreener lags new pools by days (UBERc, ADBEc… had none), so ask the
+    // Aero CL factory directly before giving up.
+    return remember(await findAeroClUsdcPoolOnchain(tokenAddress as Address).catch(() => null));
   } catch {
-    return remember(null);
+    return remember(await findAeroClUsdcPoolOnchain(tokenAddress as Address).catch(() => null));
   }
+}
+
+const AERO_CL_FACTORY_ABI = [
+  {
+    name: "getPool",
+    type: "function",
+    inputs: [
+      { name: "tokenA", type: "address" },
+      { name: "tokenB", type: "address" },
+      { name: "tickSpacing", type: "int24" },
+    ],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+  },
+] as const;
+
+const CL_POOL_SLOT0_ABI = [
+  {
+    name: "slot0",
+    type: "function",
+    inputs: [],
+    outputs: [
+      { name: "sqrtPriceX96", type: "uint160" },
+      { name: "tick", type: "int24" },
+      { name: "observationIndex", type: "uint16" },
+      { name: "observationCardinality", type: "uint16" },
+      { name: "observationCardinalityNext", type: "uint16" },
+      { name: "unlocked", type: "bool" },
+    ],
+    stateMutability: "view",
+  },
+] as const;
+
+const ERC20_READ_ABI = [
+  { name: "balanceOf", type: "function", inputs: [{ name: "a", type: "address" }], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  { name: "decimals", type: "function", inputs: [], outputs: [{ type: "uint8" }], stateMutability: "view" },
+] as const;
+
+/** USD price of `token` from a CL pool's sqrtPriceX96 against USDC. */
+export function priceUsdFromSqrtPriceX96(args: {
+  sqrtPriceX96: bigint;
+  tokenIsToken0: boolean;
+  tokenDecimals: number;
+}): number {
+  const ratio = Number(args.sqrtPriceX96) / 2 ** 96;
+  // raw token1 per raw token0
+  const raw1Per0 = ratio * ratio;
+  if (!(raw1Per0 > 0) || !Number.isFinite(raw1Per0)) return 0;
+  return args.tokenIsToken0
+    ? raw1Per0 * 10 ** (args.tokenDecimals - 6)
+    : (1 / raw1Per0) * 10 ** (args.tokenDecimals - 6);
+}
+
+/** The Aero CL token/USDC pool holding the most USDC, read straight from chain. */
+async function findAeroClUsdcPoolOnchain(token: Address): Promise<SlipstreamUsdcPairMeta | null> {
+  const routerAddress = SLIPSTREAM_ROUTER_BY_FACTORY.get(AERO_CL_FACTORY.toLowerCase());
+  if (!routerAddress) return null;
+  const publicClient = await getBasePublicClient();
+  const zero = "0x0000000000000000000000000000000000000000";
+  type Found = { pool: Address; tickSpacing: number };
+  const pools: Array<Found | null> = await Promise.all(
+    AERO_CL_TICK_SPACINGS.map((tickSpacing: number) =>
+      publicClient
+        .readContract({ address: AERO_CL_FACTORY, abi: AERO_CL_FACTORY_ABI, functionName: "getPool", args: [token, USDC_BASE, tickSpacing] })
+        .then((pool): Found => ({ pool, tickSpacing }))
+        .catch(() => null),
+    ),
+  );
+  const found = pools.filter((p): p is Found => p !== null && p.pool !== zero);
+  if (found.length === 0) return null;
+  const withDepth = await Promise.all(
+    found.map(async (p) => ({
+      ...p,
+      usdc: await publicClient
+        .readContract({ address: USDC_BASE, abi: ERC20_READ_ABI, functionName: "balanceOf", args: [p.pool] })
+        .catch(() => 0n),
+    })),
+  );
+  withDepth.sort((a, b) => (b.usdc > a.usdc ? 1 : b.usdc < a.usdc ? -1 : 0));
+  const best = withDepth[0]!;
+  if (best.usdc === 0n) return null;
+  const [slot0, tokenDecimals] = await Promise.all([
+    publicClient.readContract({ address: best.pool, abi: CL_POOL_SLOT0_ABI, functionName: "slot0" }),
+    publicClient.readContract({ address: token, abi: ERC20_READ_ABI, functionName: "decimals" }),
+  ]);
+  const priceUsd = priceUsdFromSqrtPriceX96({
+    sqrtPriceX96: slot0[0],
+    tokenIsToken0: token.toLowerCase() < USDC_BASE.toLowerCase(),
+    tokenDecimals: Number(tokenDecimals),
+  });
+  if (!(priceUsd > 0) || !Number.isFinite(priceUsd)) return null;
+  return { poolAddress: getAddress(best.pool), routerAddress, priceUsd, tickSpacing: best.tickSpacing };
 }
 
 function estimateSlipstreamUsdcToTokenOut(

@@ -50,7 +50,11 @@ describe("stockCatalog + registry", () => {
       "0xb2000000000000000000007d16372840df4dabbe",
     );
     expect(resolveStockToken("RBLX")?.feedAddress).toBeNull();
-    expect(resolveStockToken("Roblox")?.spotBuyable).toBe(true);
+    // Still listed (resolves), but its book is too thin to offer.
+    expect(resolveStockToken("Roblox")?.spotBuyable).toBe(false);
+    expect(resolveStockToken("Uber")?.symbol).toBe("UBERc");
+    expect(resolveStockToken("BRK.B")?.symbol).toBe("BRK.Bc");
+    expect(resolveStockToken("Anthropic")?.spotBuyable).toBe(true);
   });
 
   it("rejects unknown tickers", () => {
@@ -58,7 +62,7 @@ describe("stockCatalog + registry", () => {
   });
 
   it("lists the Coinbase B20 tokens with launchable from the catalog", () => {
-    expect(listStockTokens()).toHaveLength(29);
+    expect(listStockTokens()).toHaveLength(52);
     expect(listLaunchableStockTokens().map((t) => t.symbol).sort()).toEqual([
       "AAPLc",
       "GOOGLc",
@@ -76,32 +80,45 @@ describe("stockCatalog + registry", () => {
     expect(isLaunchableStock("NVDAc")).toBe(true);
     expect(formatLaunchableSymbols()).toContain("NVDAc");
     expect(listSpotBuyableOffers().map((t) => t.symbol).sort()).toEqual([
+      "AAOIc",
       "AAPLc",
+      "ADBEc",
+      "AMDc",
       "AMZNc",
-      "ARMc",
-      "BUDc",
+      "ANTc",
+      "AVGOc",
+      "BEc",
+      "BRK.Bc",
+      "CRCLc",
+      "CRWVc",
+      "GMEc",
       "GOOGLc",
-      "HSAIc",
+      "HIMSc",
+      "HOODc",
+      "INTCc",
+      "KOc",
+      "LITEc",
       "LLYc",
+      "MCDc",
       "METAc",
+      "MRNAc",
+      "MRVLc",
       "MSFTc",
       "MSTRc",
       "MUc",
-      "NIOc",
-      "NOKc",
+      "NFLXc",
+      "NOWc",
       "NVDAc",
-      "NVOc",
-      "PDDc",
+      "ORCLc",
       "PLTRc",
-      "PYPLc",
-      "RBLXc",
-      "SANc",
       "SKHYc",
       "SNDKc",
+      "SNOWc",
       "SPCXc",
       "TSLAc",
-      "ULc",
-      "VALEc",
+      "TTWOc",
+      "UBERc",
+      "WDCc",
     ]);
     expect(listStockTokens().every((t) => t.decimals === B20_STOCK_DECIMALS)).toBe(true);
   });
