@@ -39,6 +39,7 @@ import { logger } from "@/utils/logger.js";
 import { listPaidFinesForSender } from "@/swear-jar/store.js";
 import { SWEAR_FINE_USD } from "@/swear-jar/constants.js";
 import { onlyPriceable, priceableSymbols } from "@/discovery/stocks/priceHistory.js";
+import { sortByVolume, stockVolumes24h } from "@/discovery/stocks/stockVolume.js";
 
 const router = Router();
 const json = express.json({ limit: "256kb" });
@@ -522,7 +523,9 @@ router.post("/api/app/send", json, async (req: Request, res: Response) => {
 router.get("/api/app/stocks", async (_req: Request, res: Response) => {
   res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
   // Only stocks Wren can price; the rest would fail at the quote.
-  res.json({ items: onlyPriceable(listPublicStocks(), await priceableSymbols()) });
+  // Most traded first (24h DEX volume); the app keeps this order.
+  const [priceable, volumes] = await Promise.all([priceableSymbols(), stockVolumes24h()]);
+  res.json({ items: sortByVolume(onlyPriceable(listPublicStocks(), priceable), volumes) });
 });
 
 router.post("/api/app/stock-gifts", json, async (req: Request, res: Response) => {
