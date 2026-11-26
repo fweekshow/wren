@@ -166,6 +166,7 @@ export const copy = {
   shareToSee: 'Share yours to see theirs.',
   shareToSeeButton: 'Choose who sees yours',
   noMoves: 'No moves yet.',
+  onWrenLabel: 'On Wren',
   notOnWren: 'Not on Wren yet',
   notOnWrenNote: 'You’ll text them a link from your phone.',
   // Stock
