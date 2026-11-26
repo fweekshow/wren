@@ -19,6 +19,7 @@ import {
 } from "@/wallet/onramp.js";
 import { headlessBlockedReasonFromError } from "@/wallet/onrampLimits.js";
 import { OnrampUserDataAdapter } from "@/wallet/onrampUserData.js";
+import { logger } from "@/utils/logger.js";
 
 /** Coinbase's Apple Pay minimum is about $5. */
 export const APPLE_PAY_MIN_USD = 5;
@@ -100,6 +101,8 @@ export async function startAppApplePay(input: {
     return { url: url.toString(), orderId: order.order?.orderId ?? null };
   } catch (err) {
     if (err instanceof ApplePayError) throw err;
+    // Say why: missing CDP keys, a Coinbase rejection, a limit.
+    logger.warn({ err, amountUsd }, "[apple-pay] Coinbase order failed");
     if (isCoinbaseRegionForbiddenError(err)) throw new ApplePayError("us_only", 400);
     const reason = headlessBlockedReasonFromError(err);
     if (reason === "guest_transaction_count" || /guest_transaction_limit/i.test(String(err))) {

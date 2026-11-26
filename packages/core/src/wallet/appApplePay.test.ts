@@ -6,6 +6,7 @@ const getWallet = vi.hoisted(() => vi.fn());
 const getUserData = vi.hoisted(() => vi.fn());
 
 vi.mock("@/config/config.js", () => ({ config: cfg }));
+vi.mock("@/utils/logger.js", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock("@/discovery/adapters/wallet.adapter.js", () => ({
   WalletAdapter: { getEmbeddedWallet: getWallet },
 }));
