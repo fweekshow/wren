@@ -2,22 +2,14 @@ import { describe, expect, it } from "vitest";
 import { changePct, downsample, dropRepeats, onlyPriceable } from "./priceHistory.js";
 
 describe("only priceable stocks", () => {
-  // AAPL, NVDA and TSLA have Chainlink feeds; UBER, KO and BRK.B don't yet.
-  const items = [{ symbol: "AAPLc" }, { symbol: "TSLAc" }, { symbol: "NVDAc" }];
+  const items = [{ symbol: "AAPLc" }, { symbol: "ARMc" }, { symbol: "NVDAc" }];
 
   it("keeps stocks with a recent price", () => {
     expect(onlyPriceable(items, new Set(["AAPLc", "NVDAc"])).map((i) => i.symbol)).toEqual(["AAPLc", "NVDAc"]);
   });
 
-  it("shows every feed stock when prices aren't known yet", () => {
+  it("shows everything when prices aren't known yet", () => {
     expect(onlyPriceable(items, null)).toEqual(items);
-  });
-
-  it("hides stocks with no Chainlink feed, even with a saved price", () => {
-    const withFeedless = [...items, { symbol: "UBERc" }, { symbol: "KOc" }, { symbol: "BRK.Bc" }];
-    const all = new Set(withFeedless.map((i) => i.symbol));
-    expect(onlyPriceable(withFeedless, all).map((i) => i.symbol)).toEqual(["AAPLc", "TSLAc", "NVDAc"]);
-    expect(onlyPriceable(withFeedless, null).map((i) => i.symbol)).toEqual(["AAPLc", "TSLAc", "NVDAc"]);
   });
 });
 
