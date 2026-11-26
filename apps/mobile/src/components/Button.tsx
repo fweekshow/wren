@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { color, radius, spacing, type } from '../theme';
 
-type Variant = 'primary' | 'secondary' | 'ghost';
+// ink: the Apple Pay pill (design rule: "Apple Pay" as text on an ink pill).
+type Variant = 'primary' | 'secondary' | 'ghost' | 'ink';
 
 type Props = {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ const VARIANT = {
   primary: { bg: color.action, bgDown: color.actionPressed, fg: color.textOnAction },
   secondary: { bg: color.card, bgDown: color.pressed, fg: color.textPrimary },
   ghost: { bg: 'transparent', bgDown: color.card, fg: color.textPrimary },
+  ink: { bg: color.ink, bgDown: '#2A2D33', fg: color.textOnAction },
 } as const;
 
 export function Button({

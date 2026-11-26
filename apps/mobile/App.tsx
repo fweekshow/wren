@@ -465,7 +465,6 @@ function Shell() {
         <BuyScreen
           initialSymbol={screen.symbol}
           onBack={back}
-          onAddCash={() => go({ name: 'addCash' })}
           onChangeStock={() => go({ name: 'what', purpose: 'buy', replace: true })}
           onBought={(r) =>
             swap({ name: 'bought', usd: r.usd, symbol: r.symbol, stockName: r.stockName })
@@ -527,7 +526,6 @@ function Shell() {
           person={screen.person}
           phone={screen.phone}
           initialSymbol={screen.symbol}
-          onAddCash={() => go({ name: 'addCash' })}
           onBack={back}
           onChangeStock={() => go({ name: 'what', purpose: 'send', replace: true })}
           onSent={({ giftId, usd, symbol }) => {
@@ -544,11 +542,7 @@ function Shell() {
         />
       )}
       {screen.name === 'addCash' && (
-        <AddCashScreen
-          address={wallets.wallets[0]?.address ?? null}
-          onBack={back}
-          onAdded={back}
-        />
+        <AddCashScreen onBack={back} onAdded={() => back()} />
       )}
       {screen.name === 'connect' && (
         <ConnectScreen mode="settings" onBack={back} />

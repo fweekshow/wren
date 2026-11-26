@@ -39,6 +39,9 @@ import { sendPush } from "@/messaging/wrenOutbound.js";
 import { createConnectCode, pollConnectCode } from "@/messaging/wrenConnect.js";
 import { createPortfolioAccessToken } from "@/portfolio/access.js";
 import { logger } from "@/utils/logger.js";
+import { ApplePayError, startAppApplePay } from "@/wallet/appApplePay.js";
+import { issueEmailOtp, verifyEmailOtp } from "@/wallet/emailOtp.js";
+import { clientIpFromRequest } from "@/wallet/fundSessionCheckout.js";
 import { connectTargets, privySession } from "../../../../apps/channels-server/src/routes/privySession.js";
 
 const router = Router();
@@ -127,58 +130,62 @@ router.post("/api/app/push-tokens", json, async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post("/api/app/pay", json, async (req, res) => {
+// ── Apple Pay (Coinbase headless onramp) ─────────────────────────────────
+// POST /api/app/apple-pay { amount } → { url } for the app's WebView. Coinbase
+// needs a verified email first: 409 need_email / need_email_code, then
+// /apple-pay/email { email } sends a code and /apple-pay/verify { code } checks it.
+router.post("/api/app/apple-pay", json, async (req, res) => {
   const user = authedSender(req, res);
   if (!user) return;
-  const method = req.body?.method;
-  const amount = Number(req.body?.amount);
-  if (method !== "apple" && method !== "card" && method !== "bank") {
-    res.status(400).json({ error: "Pick a way to pay." });
-    return;
-  }
-  if (!Number.isFinite(amount) || amount <= 0) {
-    res.status(400).json({ error: "Enter an amount." });
-    return;
-  }
-  const provider = method === "bank" ? "bridge" : "stripe";
-  const paymentMethod = method === "apple" ? "apple_pay" : method === "card" ? "card" : "ach";
   try {
-    const appId = process.env.PRIVY_APP_ID?.trim() || "";
-    const secret = process.env.PRIVY_APP_SECRET?.trim() || "";
-    if (!appId || !secret) {
-      res.status(503).json({ error: "Payments are not ready yet." });
-      return;
-    }
-    const response = await fetch("https://api.privy.io/v1/fiat/onramp", {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${appId}:${secret}`).toString("base64")}`,
-        "privy-app-id": appId,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        user_id: user,
-        amount: amount.toFixed(2),
-        currency: "usd",
-        provider,
-        payment_method: paymentMethod,
-        destination_chain: "base",
-        destination_asset: "usdc",
-      }),
+    const result = await startAppApplePay({
+      phone: user,
+      amountUsd: Number(req.body?.amount),
+      clientIp: clientIpFromRequest(req),
     });
-    const body = (await response.json().catch(() => ({}))) as { client_secret?: string; error?: string };
-    if (!response.ok) {
-      res.status(502).json({ error: "That payment didn't start." });
-      return;
-    }
-    res.json({
-      ok: true,
-      method,
-      clientSecret: body.client_secret ?? null,
-    });
+    res.setHeader("Cache-Control", "no-store");
+    res.json(result);
   } catch (err) {
-    logger.error({ err }, "POST /api/app/pay");
-    res.status(502).json({ error: "That payment didn't start." });
+    if (err instanceof ApplePayError) {
+      res.status(err.status).json({ error: err.code });
+      return;
+    }
+    logger.error({ err }, "POST /api/app/apple-pay");
+    res.status(502).json({ error: "unavailable" });
+  }
+});
+
+router.post("/api/app/apple-pay/email", json, async (req, res) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    res.status(400).json({ error: "bad_email" });
+    return;
+  }
+  try {
+    await issueEmailOtp(user, email, "Wren");
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "POST /api/app/apple-pay/email");
+    res.status(502).json({ error: "email_failed" });
+  }
+});
+
+router.post("/api/app/apple-pay/verify", json, async (req, res) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+  try {
+    const result = await verifyEmailOtp(user, code);
+    if (!result.ok) {
+      res.status(400).json({ error: result.reason });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "POST /api/app/apple-pay/verify");
+    res.status(500).json({ error: "verify_failed" });
   }
 });
 
@@ -225,12 +232,10 @@ router.post("/api/app/stock-gifts/send", json, async (req: Request, res: Respons
         phone: req.body?.recipient?.phone,
       },
       pricing: "wren",
-      payFrom: req.body?.payFrom === "cash" ? "cash" : "card",
+      // The app tops up cash first (Apple Pay or card), then sends from cash.
+      payFrom: "cash",
     });
-    if (created.status === "sending") {
-      // Paid from cash: nothing to wait for, start it now.
-      await StockGiftAdapter.claimGiftStart(created.giftId);
-    }
+    await StockGiftAdapter.claimGiftStart(created.giftId);
     void fulfillStockGift(created.giftId).catch((err) => {
       logger.error({ err }, "fulfill stock gift");
     });

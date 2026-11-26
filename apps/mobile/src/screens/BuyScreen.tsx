@@ -1,6 +1,7 @@
 // Buy: the amount screen without a person. Spends cash in your Wren account;
 // no Wren fee. Not enough cash → "You have $20 in cash. Add $30 to buy this."
-// and the button becomes Add cash.
+// and the button becomes Pay $31: the Pay card adds the cash (Apple Pay or
+// card), then the buy goes through with the same stock and amount.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -12,6 +13,7 @@ import { ChosenStock } from '../components/Market';
 import { Presets } from '../components/Presets';
 import { applyKey, Keypad } from '../components/Keypad';
 import { Button } from '../components/Button';
+import { PayCard, topUpFor } from '../components/PayCard';
 import { buyStock, BuyResult, getPortfolio, getStocks, notEnoughCash, Stock } from '../api';
 import { copy } from '../copy';
 import { usd2 } from '../fees';
@@ -21,11 +23,10 @@ type Props = {
   initialSymbol?: string;
   onBack: () => void;
   onBought: (r: BuyResult & { stockName: string }) => void;
-  onAddCash: () => void;
   onChangeStock: () => void;
 };
 
-export function BuyScreen({ initialSymbol, onBack, onBought, onAddCash, onChangeStock }: Props) {
+export function BuyScreen({ initialSymbol, onBack, onBought, onChangeStock }: Props) {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [symbol, setSymbol] = useState<string | undefined>(initialSymbol);
   useEffect(() => {
@@ -36,6 +37,7 @@ export function BuyScreen({ initialSymbol, onBack, onBought, onAddCash, onChange
   const [busy, setBusy] = useState(false);
   const [short, setShort] = useState<{ cashUsd: number; neededUsd: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -78,6 +80,7 @@ export function BuyScreen({ initialSymbol, onBack, onBought, onAddCash, onChange
   const knownShort = cash != null && numeric > 0 && numeric > cash + 0.005;
   const shortBy = short ? short.neededUsd - short.cashUsd : knownShort ? numeric - (cash ?? 0) : 0;
   const needsCash = !!short || knownShort;
+  const topUp = topUpFor(Math.max(shortBy, 0.01));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -117,13 +120,24 @@ export function BuyScreen({ initialSymbol, onBack, onBought, onAddCash, onChange
           <Text style={styles.note}>{copy.cashHave(usd2(cash))}</Text>
         ) : null}
         {needsCash ? (
-          <Button onPress={onAddCash}>{copy.addCash}</Button>
+          <Button onPress={() => setPaying(true)}>{`${copy.pay} ${usd2(topUp)}`}</Button>
         ) : (
           <Button disabled={!symbol || !(numeric > 0)} loading={busy} onPress={() => void buy()}>
             {busy ? copy.buying : copy.buy}
           </Button>
         )}
       </View>
+      <PayCard
+        visible={paying}
+        amount={topUp}
+        onClose={() => setPaying(false)}
+        onPaid={(c) => {
+          setPaying(false);
+          setCash(c);
+          setShort(null);
+          void buy();
+        }}
+      />
     </SafeAreaView>
   );
 }

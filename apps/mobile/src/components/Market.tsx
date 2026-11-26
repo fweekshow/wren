@@ -1,4 +1,4 @@
-// Market pieces: the green/red change chip, sparklines and the stock chart,
+// Market pieces: the green/red change, sparklines and the stock chart,
 // the round letter badge for a company, and the pill switch used for
 // Account | People, the chart ranges, and who sees your moves.
 
@@ -17,9 +17,10 @@ export function Arrow({ up, size = 12, fill }: { up: boolean; size?: number; fil
 }
 
 /**
- * A move (Wren Color): an arrow and the percent. On white it's a chip, lime
- * up or coral down, ink text. `on` = the text color of a colored card it sits
- * on: then no chip, just arrow and percent in that color.
+ * A move: an arrow and the percent, both green when up and red when down, so
+ * the direction reads at a glance (Nov 26 2026: replaces the lime/coral chip).
+ * `on` = it sits on a colored card: then it's a small white pill, so the
+ * green/red stays readable on any card color.
  */
 export function Change({
   value,
@@ -36,21 +37,12 @@ export function Change({
   // Rounds to 0.00%: no move, so no arrow and no up/down color.
   const flat = pct === '0.00%';
   const label = flat ? `Flat ${pct}` : `${up ? 'Up' : 'Down'} ${pct}`;
-  if (on) {
-    return (
-      <View style={[styles.changeBare, style]} accessibilityLabel={label}>
-        {!flat && <Arrow up={up} fill={on} />}
-        <Text style={[styles.changeText, { color: on }]}>{pct}</Text>
-      </View>
-    );
-  }
+  const tone = flat ? color.textSecondary : up ? color.moveUpInk : color.moveDownInk;
   return (
-    <View
-      style={[styles.change, { backgroundColor: flat ? color.card : up ? color.moveUp : color.moveDown }, style]}
-      accessibilityLabel={label}
-    >
-      {!flat && <Arrow up={up} fill={color.ink} />}
-      <Text style={styles.changeText}>{pct}</Text>
+    // On a colored card, a small white pill keeps green/red readable on any color.
+    <View style={[on ? styles.changeOnCard : styles.change, style]} accessibilityLabel={label}>
+      {!flat && <Arrow up={up} fill={tone} />}
+      <Text style={[styles.changeText, { color: tone }]}>{pct}</Text>
     </View>
   );
 }
@@ -276,15 +268,22 @@ export const rowLine = (i: number, n: number) =>
 const styles = StyleSheet.create({
   change: {
     height: 28,
-    paddingLeft: 8,
-    paddingRight: 11,
-    borderRadius: radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     alignSelf: 'flex-start',
   },
-  changeBare: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
+  changeOnCard: {
+    height: 26,
+    paddingLeft: 7,
+    paddingRight: 10,
+    borderRadius: radius.pill,
+    backgroundColor: color.canvas,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
   changeText: { ...type.percent, color: color.ink },
   letter: { alignItems: 'center', justifyContent: 'center' },
   seg: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: radius.pill, backgroundColor: color.card },

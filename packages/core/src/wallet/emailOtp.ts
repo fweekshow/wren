@@ -35,7 +35,7 @@ function getTransporter(): Transporter {
   return transporter;
 }
 
-export async function sendEmailOtp(email: string, code: string): Promise<void> {
+export async function sendEmailOtp(email: string, code: string, brand = "Basemate"): Promise<void> {
   if (config.cdp.onrampSandbox || config.env !== "production") {
     console.log(`[onramp OTP] SANDBOX email to ${email}: code ${code}`);
     return;
@@ -48,16 +48,16 @@ export async function sendEmailOtp(email: string, code: string): Promise<void> {
   await getTransporter().sendMail({
     from: config.email.from,
     to: email,
-    subject: "Your Basemate verification code",
+    subject: `Your ${brand} verification code`,
     text: [
-      `Your Basemate verification code is: ${code}`,
+      `Your ${brand} verification code is: ${code}`,
       "",
       "This code expires in 10 minutes. If you didn't request this, you can ignore this email.",
     ].join("\n"),
   });
 }
 
-export async function issueEmailOtp(userPhone: string, email: string): Promise<void> {
+export async function issueEmailOtp(userPhone: string, email: string, brand?: string): Promise<void> {
   const code = generateOtp();
   await OnrampUserDataAdapter.upsert(userPhone, {
     email,
@@ -65,7 +65,7 @@ export async function issueEmailOtp(userPhone: string, email: string): Promise<v
     pendingEmailOtp: code,
     pendingEmailOtpExpiresAt: new Date(Date.now() + EMAIL_OTP_TTL_MS),
   });
-  await sendEmailOtp(email, code);
+  await sendEmailOtp(email, code, brand);
 }
 
 export async function verifyEmailOtp(userPhone: string, code: string): Promise<EmailOtpVerifyResult> {
