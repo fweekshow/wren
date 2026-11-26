@@ -24,6 +24,21 @@ import { logger } from "@/utils/logger.js";
 /** Coinbase's Apple Pay minimum is about $5. */
 export const APPLE_PAY_MIN_USD = 5;
 export const APPLE_PAY_MAX_USD = 500;
+/**
+ * Coinbase keeps 2.5% of the USDC bought (2.44% of the payment), checked
+ * against live quotes on our project: pay $100 → 97.56 USDC, fee $2.44.
+ */
+export const APPLE_PAY_FEE_BPS = 250;
+
+/**
+ * Fee on top: the person asks for `receiveUsd` of cash and pays that plus
+ * Coinbase's fee. Integer cents, so it matches Coinbase's own rounding.
+ */
+export function applePayQuote(receiveUsd: number): { receiveUsd: number; feeUsd: number; totalUsd: number } {
+  const cents = Math.round(Math.max(0, receiveUsd) * 100);
+  const feeCents = Math.round((cents * APPLE_PAY_FEE_BPS) / 10_000);
+  return { receiveUsd: cents / 100, feeUsd: feeCents / 100, totalUsd: (cents + feeCents) / 100 };
+}
 /** App sessions last 30 days, so a signed-in phone was verified at most this long ago. */
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const PHONE_VERIFIED_MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
@@ -58,10 +73,12 @@ export function phoneVerifiedAt(stamped: Date | null | undefined, now = new Date
 
 export async function startAppApplePay(input: {
   phone: string;
-  amountUsd: number;
+  /** Cash to land in the account; Coinbase's fee is charged on top. */
+  receiveUsd: number;
   clientIp?: string;
-}): Promise<{ url: string; orderId: string | null }> {
-  const { phone, amountUsd } = input;
+}): Promise<{ url: string; orderId: string | null; receiveUsd: number; feeUsd: number; totalUsd: number }> {
+  const { phone } = input;
+  const amountUsd = input.receiveUsd;
   if (!Number.isFinite(amountUsd) || amountUsd < APPLE_PAY_MIN_USD || amountUsd > APPLE_PAY_MAX_USD) {
     throw new ApplePayError("bad_amount", 400);
   }
@@ -84,7 +101,8 @@ export async function startAppApplePay(input: {
       phoneNumberVerifiedAt: phoneVerifiedAt(data.phoneVerifiedAt, now).toISOString(),
       // The app shows Coinbase's terms right above the button the user taps.
       agreementAcceptedAt: now.toISOString(),
-      paymentAmount: amountUsd.toFixed(2),
+      // Exact cash to receive; Coinbase adds its fee to what Apple Pay charges.
+      purchaseAmount: amountUsd.toFixed(2),
       paymentCurrency: "USD",
       paymentMethod: APPLE_PAY_METHOD,
       purchaseCurrency: "USDC",
@@ -98,7 +116,16 @@ export async function startAppApplePay(input: {
     if (!link) throw new ApplePayError("unavailable", 502);
     const url = new URL(link);
     if (sandbox) url.searchParams.set("useApplePaySandbox", "true");
-    return { url: url.toString(), orderId: order.order?.orderId ?? null };
+    const est = applePayQuote(amountUsd);
+    const total = Number(order.order?.paymentTotal);
+    const totalUsd = Number.isFinite(total) && total > 0 ? total : est.totalUsd;
+    return {
+      url: url.toString(),
+      orderId: order.order?.orderId ?? null,
+      receiveUsd: est.receiveUsd,
+      feeUsd: Math.round((totalUsd - est.receiveUsd) * 100) / 100,
+      totalUsd,
+    };
   } catch (err) {
     if (err instanceof ApplePayError) throw err;
     // Say why: missing CDP keys, a Coinbase rejection, a limit.

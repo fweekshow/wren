@@ -39,7 +39,7 @@ import { sendPush } from "@/messaging/wrenOutbound.js";
 import { createConnectCode, pollConnectCode } from "@/messaging/wrenConnect.js";
 import { createPortfolioAccessToken } from "@/portfolio/access.js";
 import { logger } from "@/utils/logger.js";
-import { ApplePayError, startAppApplePay } from "@/wallet/appApplePay.js";
+import { APPLE_PAY_MIN_USD, ApplePayError, applePayQuote, startAppApplePay } from "@/wallet/appApplePay.js";
 import { issueEmailOtp, verifyEmailOtp } from "@/wallet/emailOtp.js";
 import { clientIpFromRequest } from "@/wallet/fundSessionCheckout.js";
 import { connectTargets, privySession } from "../../../../apps/channels-server/src/routes/privySession.js";
@@ -140,7 +140,8 @@ router.post("/api/app/apple-pay", json, async (req, res) => {
   try {
     const result = await startAppApplePay({
       phone: user,
-      amountUsd: Number(req.body?.amount),
+      // `receive`: cash to land (fee on top). Build 4 sends `amount`.
+      receiveUsd: Number(req.body?.receive ?? req.body?.amount),
       clientIp: clientIpFromRequest(req),
     });
     res.setHeader("Cache-Control", "no-store");
@@ -153,6 +154,19 @@ router.post("/api/app/apple-pay", json, async (req, res) => {
     logger.error({ err }, "POST /api/app/apple-pay");
     res.status(502).json({ error: "unavailable" });
   }
+});
+
+// What an Apple Pay top-up costs, before the person taps: cash + Coinbase's fee.
+router.get("/api/app/apple-pay/quote", (req: Request, res: Response) => {
+  const user = authedSender(req, res);
+  if (!user) return;
+  const receive = Number(req.query.receive);
+  if (!Number.isFinite(receive) || receive <= 0) {
+    res.status(400).json({ error: "bad_amount" });
+    return;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ ...applePayQuote(Math.max(receive, APPLE_PAY_MIN_USD)), minUsd: APPLE_PAY_MIN_USD });
 });
 
 router.post("/api/app/apple-pay/email", json, async (req, res) => {
@@ -189,7 +203,7 @@ router.post("/api/app/apple-pay/verify", json, async (req, res) => {
   }
 });
 
-// What a send would cost, before Pay: $2.99 to send (free the first time),
+// What a send would cost, before Pay: 1.5% to send, at least $0.99 (free the first time),
 // plus the card cost at what Coinbase charges.
 router.get("/api/app/send-quote", async (req: Request, res: Response) => {
   const user = authedSender(req, res);

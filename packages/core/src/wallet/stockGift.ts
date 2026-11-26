@@ -47,7 +47,7 @@ export type StockGiftIntent = {
   quotedAt: string;
   maxUsd: number;
   sharePriceUsd?: number;
-  /** Fee fixed at checkout (Wren: $2.99, or 0 on a first send). Absent = 1%. */
+  /** Fee fixed at checkout (Wren: 1.5%, min $0.99, or 0 on a first send). Absent = 1%. */
   feeUsd?: number;
   /** Paid from cash: always buy new, never send the sender's own shares. */
   buyNew?: boolean;

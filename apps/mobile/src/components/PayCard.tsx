@@ -18,7 +18,9 @@ import { color, radius, spacing, type } from '../theme';
 import { Button } from './Button';
 import {
   apiErrorCode,
+  getApplePayQuote,
   getCash,
+  type ApplePayQuote,
   sendApplePayEmail,
   startApplePay,
   verifyApplePayEmail,
@@ -62,9 +64,9 @@ true;
 /** Coinbase's Apple Pay minimum. */
 export const APPLE_PAY_MIN_USD = 5;
 
-/** How much to add to cover `shortUsd`: a little over (Coinbase can take a fee), whole dollars, $5 minimum. */
+/** Cash to add to cover `shortUsd`: exactly that (fees are on top), $5 minimum. */
 export function topUpFor(shortUsd: number): number {
-  return Math.max(APPLE_PAY_MIN_USD, Math.ceil(shortUsd * 1.03));
+  return Math.max(APPLE_PAY_MIN_USD, Math.ceil(shortUsd * 100 - 1e-6) / 100);
 }
 
 type Step = 'choose' | 'email' | 'code' | 'opening' | 'waiting' | 'slow';
@@ -85,6 +87,8 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
   const wallets = useEmbeddedEthereumWallet();
   const { fundWallet } = useFundWallet();
   const [step, setStep] = useState<Step>('choose');
+  // Apple Pay total with Coinbase's fee on top, shown before the tap.
+  const [quote, setQuote] = useState<ApplePayQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [appleOff, setAppleOff] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -114,6 +118,12 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
     setPrivyOpen(false);
     setShowCoinbaseButton(false);
     cashBefore.current = null;
+    setQuote(null);
+    getApplePayQuote(amount)
+      .then((q) => {
+        if (alive.current) setQuote(q);
+      })
+      .catch(() => undefined);
     getCash()
       .then((c) => {
         cashBefore.current = c;
@@ -122,6 +132,7 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
     return () => {
       alive.current = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const waitForCash = useCallback(async () => {
@@ -328,12 +339,23 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
 
         {step === 'choose' && (
           <>
-            <Text style={styles.sub}>{copy.paySub(amountLabel)}</Text>
+            {!appleOff && quote ? (
+              <View style={styles.breakdown}>
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>{copy.payToCash}</Text>
+                  <Text style={styles.rowValue}>{usd2(quote.receiveUsd)}</Text>
+                </View>
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>{copy.payApplePayFee}</Text>
+                  <Text style={styles.rowValue}>{usd2(quote.feeUsd)}</Text>
+                </View>
+              </View>
+            ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.actions}>
               {!appleOff && (
                 <Button variant="ink" loading={busy} onPress={() => void apple()}>
-                  {copy.applePay}
+                  {quote ? copy.applePayTotal(usd2(quote.totalUsd)) : copy.applePay}
                 </Button>
               )}
               <Button variant="secondary" disabled={busy} onPress={card}>
@@ -454,6 +476,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: { ...type.titleSm, color: color.ink },
+  breakdown: { gap: 6, paddingVertical: 4 },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  rowLabel: { ...type.bodyRegular, color: color.textSecondary },
+  rowValue: { ...type.body, color: color.ink },
   sub: { ...type.bodyRegular, color: color.textSecondary },
   actions: { gap: 10, marginTop: 4 },
   terms: { ...type.caption, color: color.textSecondary, textAlign: 'center' },

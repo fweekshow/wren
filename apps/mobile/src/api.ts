@@ -279,7 +279,7 @@ export async function pollConnectCode(
   return { status: raw.status === 'expired' ? 'expired' : 'waiting' };
 }
 
-// What a send costs before Pay: $2.99 to send (free the first time) plus the
+// What a send costs before Pay: 1.5% to send, at least $0.99 (free the first time), plus the
 // card cost at what Coinbase charges. GET /api/app/send-quote.
 export type SendQuote = {
   stockUsd: number;
@@ -300,15 +300,23 @@ export function getSendQuote(usd: number, payFrom: PayFrom = 'card'): Promise<Se
 // loaded in a WebView. 409 need_email / need_email_code until the email is
 // verified once (POST /api/app/apple-pay/email, then /verify).
 
-export type ApplePayStart = { url: string; orderId: string | null };
+export type ApplePayStart = { url: string; orderId: string | null; totalUsd: number | null };
 
-export async function startApplePay(amount: number): Promise<ApplePayStart> {
-  const raw = await request<{ url?: string; orderId?: string | null }>('/api/app/apple-pay', {
+/** Start Apple Pay for `receive` dollars of cash; Coinbase's fee is added on top. */
+export async function startApplePay(receive: number): Promise<ApplePayStart> {
+  const raw = await request<{ url?: string; orderId?: string | null; totalUsd?: number }>('/api/app/apple-pay', {
     method: 'POST',
-    json: { amount },
+    json: { receive },
   });
   if (!raw.url) throw new ApiError('Bad response from server.', 500, raw);
-  return { url: raw.url, orderId: raw.orderId ?? null };
+  return { url: raw.url, orderId: raw.orderId ?? null, totalUsd: typeof raw.totalUsd === 'number' ? raw.totalUsd : null };
+}
+
+export type ApplePayQuote = { receiveUsd: number; feeUsd: number; totalUsd: number; minUsd: number };
+
+/** What `receive` dollars of cash costs by Apple Pay: Coinbase's fee on top. */
+export function getApplePayQuote(receive: number): Promise<ApplePayQuote> {
+  return request<ApplePayQuote>('/api/app/apple-pay/quote', { query: { receive } });
 }
 
 export async function sendApplePayEmail(email: string): Promise<void> {
