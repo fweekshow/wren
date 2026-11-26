@@ -65,6 +65,7 @@ export const copy = {
   payCodeButton: 'Verify',
   payCodeWrong: 'That code didn’t match. Try again.',
   payOpening: 'Opening Apple Pay…',
+  payTapApple: 'Tap Apple Pay to finish.',
   payWaiting: (amount: string) => `Adding ${amount} to your cash…`,
   payWaitingNote: 'Usually under a minute.',
   payStillComing: 'Still on its way. It’ll show in your cash soon.',
