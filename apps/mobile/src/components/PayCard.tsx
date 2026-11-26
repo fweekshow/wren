@@ -33,6 +33,32 @@ const CoinbaseWebView = WebView as unknown as React.ComponentType<
   WebViewProps & { ref?: React.Ref<WebView> }
 >;
 
+// Coinbase's page talks to iOS apps through window.webkit.messageHandlers.cbOnramp
+// (their iOS docs: the name must be exactly "cbOnramp"). react-native-webview
+// only registers "ReactNativeWebView", so add a cbOnramp that forwards to it,
+// and forward window postMessage events too. Runs before the page's scripts.
+const CB_ONRAMP_BRIDGE = `
+(function () {
+  function send(m) {
+    try {
+      window.ReactNativeWebView.postMessage(typeof m === 'string' ? m : JSON.stringify(m));
+    } catch (e) {}
+  }
+  try {
+    var h = window.webkit && window.webkit.messageHandlers;
+    if (h && !h.cbOnramp) {
+      try { Object.defineProperty(h, 'cbOnramp', { value: { postMessage: send }, configurable: true }); }
+      catch (e) { h.cbOnramp = { postMessage: send }; }
+    }
+  } catch (e) {}
+  window.addEventListener('message', function (e) {
+    var d = e && e.data;
+    if (d && (typeof d === 'string' ? d.indexOf('onramp_api.') >= 0 : String(d.eventName || '').indexOf('onramp_api.') === 0)) send(d);
+  });
+})();
+true;
+`;
+
 /** Coinbase's Apple Pay minimum. */
 export const APPLE_PAY_MIN_USD = 5;
 
@@ -67,6 +93,11 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
   const [payUrl, setPayUrl] = useState<string | null>(null);
   // Privy's card sheet draws at the app root, under this Modal: step aside while it's open.
   const [privyOpen, setPrivyOpen] = useState(false);
+  // Coinbase's own Apple Pay button, shown when pressing it for you didn't bring up the sheet.
+  const [showCoinbaseButton, setShowCoinbaseButton] = useState(false);
+  const settled = useRef(false);
+  const loaded = useRef(false);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const cashBefore = useRef<number | null>(null);
   const alive = useRef(false);
   const webRef = useRef<WebView>(null);
@@ -81,6 +112,7 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
     setCode('');
     setPayUrl(null);
     setPrivyOpen(false);
+    setShowCoinbaseButton(false);
     cashBefore.current = null;
     getCash()
       .then((c) => {
@@ -116,8 +148,16 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
     try {
       const { url } = await startApplePay(amount);
       if (!alive.current) return;
+      settled.current = false;
+      loaded.current = false;
+      setShowCoinbaseButton(false);
       setStep('opening');
       setPayUrl(url);
+      // Coinbase's page never said it loaded: don't leave the person on a spinner.
+      later(() => {
+        if (settled.current || loaded.current) return;
+        endApplePay(copy.payAppleFailed);
+      }, 20_000);
     } catch (err) {
       const code = apiErrorCode(err);
       if (code === 'need_email' || code === 'need_email_code') setStep('email');
@@ -161,6 +201,24 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
     }
   };
 
+  const later = (fn: () => void, ms: number) => {
+    timers.current.push(setTimeout(fn, ms));
+  };
+  useEffect(
+    () => () => {
+      timers.current.forEach(clearTimeout);
+    },
+    [],
+  );
+  const endApplePay = (message: string | null) => {
+    settled.current = true;
+    loaded.current = false;
+    setPayUrl(null);
+    setShowCoinbaseButton(false);
+    setStep('choose');
+    setError(message);
+  };
+
   const pressApplePay = () => {
     webRef.current?.injectJavaScript(`
       (function () {
@@ -184,24 +242,29 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
     }
     switch (name) {
       case 'onramp_api.load_success':
+        loaded.current = true;
         pressApplePay();
+        // Coinbase says its button must be tapped by the person. If our press
+        // didn't bring up Apple Pay, show their button so they can tap it.
+        later(() => {
+          if (!settled.current) setShowCoinbaseButton(true);
+        }, 2500);
         break;
       case 'onramp_api.commit_success':
+        settled.current = true;
+        setShowCoinbaseButton(false);
         track('apple_pay_paid', { amount });
         void waitForCash();
         break;
       case 'onramp_api.cancel':
-        setPayUrl(null);
-        setStep('choose');
+        endApplePay(null);
         break;
       case 'onramp_api.load_error':
       case 'onramp_api.commit_error':
       case 'onramp_api.validate_merchant_error':
       case 'onramp_api.polling_error':
         track('apple_pay_failed', { event: name });
-        setPayUrl(null);
-        setStep('choose');
-        setError(copy.payAppleFailed);
+        endApplePay(copy.payAppleFailed);
         break;
       default:
         break;
@@ -324,11 +387,15 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
           </>
         )}
 
-        {step === 'opening' && (
+        {step === 'opening' && !showCoinbaseButton && (
           <View style={styles.center}>
             <ActivityIndicator color={color.ink} />
             <Text style={styles.sub}>{copy.payOpening}</Text>
           </View>
+        )}
+
+        {step === 'opening' && showCoinbaseButton && (
+          <Text style={styles.sub}>{copy.payTapApple}</Text>
         )}
 
         {step === 'waiting' && (
@@ -347,22 +414,28 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
         )}
 
         {payUrl ? (
-          // Coinbase's page, out of sight: it only hosts the Apple Pay button we press.
-          <View style={styles.hidden} pointerEvents="none">
-          <CoinbaseWebView
-            ref={webRef}
-            style={{ flex: 1 }}
-            source={{ uri: payUrl }}
-            onMessage={onMessage}
-            javaScriptEnabled
-            domStorageEnabled
-            sharedCookiesEnabled
-            thirdPartyCookiesEnabled
-            allowsInlineMediaPlayback
-            originWhitelist={['*']}
-            setSupportMultipleWindows={false}
-            javaScriptCanOpenWindowsAutomatically
-          />
+          // Coinbase's page. Hidden while we press its Apple Pay button for
+          // you; shown, button-sized, if you need to tap it yourself.
+          <View
+            style={showCoinbaseButton && step === 'opening' ? styles.coinbaseButton : styles.hidden}
+            pointerEvents={showCoinbaseButton && step === 'opening' ? 'auto' : 'none'}
+          >
+            <CoinbaseWebView
+              ref={webRef}
+              style={{ flex: 1, backgroundColor: 'transparent' }}
+              source={{ uri: payUrl }}
+              onMessage={onMessage}
+              injectedJavaScriptBeforeContentLoaded={CB_ONRAMP_BRIDGE}
+              javaScriptEnabled
+              domStorageEnabled
+              sharedCookiesEnabled
+              thirdPartyCookiesEnabled
+              allowsInlineMediaPlayback
+              originWhitelist={['*']}
+              setSupportMultipleWindows={false}
+              javaScriptCanOpenWindowsAutomatically
+              scrollEnabled={false}
+            />
           </View>
         ) : null}
       </View>
@@ -396,4 +469,5 @@ const styles = StyleSheet.create({
   },
   // Same as Coinbase's demo: full size but invisible and behind the card.
   hidden: { ...StyleSheet.absoluteFill, opacity: 0, zIndex: -1 },
+  coinbaseButton: { height: 64, borderRadius: radius.pill, overflow: 'hidden', marginTop: 4 },
 });
