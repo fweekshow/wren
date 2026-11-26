@@ -344,13 +344,25 @@ export function dropRepeats(points: [number, number][]): [number, number][] {
 
 // ── Which stocks Wren can price ────────────────────────────────────────────
 // Some catalog stocks have no Chainlink feed and no Aerodrome pool, so quotes
-// fail. A stock is shown only if a price was saved for it in the last 4 days;
-// it comes back by itself once Coinbase adds a feed or pool.
+// fail; others have a pool nobody trades and no history yet, so they'd show a
+// flat line and 0.00%. A stock is shown only with real data: a price saved in
+// the last 4 days, and over the last week at least 10 points with more than
+// one distinct price. It comes back by itself once data exists (a Yahoo or
+// Chainlink backfill, or the pool starts trading).
 const PRICEABLE_WINDOW = "4 days";
+const MOVEMENT_WINDOW = "7 days";
+const MIN_WEEK_POINTS = 10;
 let priceableCache: { at: number; symbols: Set<string> | null } | null = null;
 
+export type PriceStats = { symbol: string; recent: number; weekPoints: number; weekDistinct: number };
+
+/** Whether a stock's saved prices are real data rather than a frozen line. */
+export function hasRealPriceData(s: PriceStats): boolean {
+  return s.recent > 0 && s.weekPoints >= MIN_WEEK_POINTS && s.weekDistinct > 1;
+}
+
 /**
- * Symbols with a recent saved price, or null when that can't be known yet
+ * Symbols with real recent price data, or null when that can't be known yet
  * (no snapshots so far, or the database is unreachable). Callers show
  * everything on null so the list is never empty by mistake.
  */
@@ -360,9 +372,17 @@ export async function priceableSymbols(): Promise<Set<string> | null> {
   try {
     await ensureTable();
     const { rows } = await db.query(
-      `SELECT DISTINCT symbol FROM stock_prices WHERE at > NOW() - INTERVAL '${PRICEABLE_WINDOW}'`,
+      `SELECT symbol,
+              COUNT(*) FILTER (WHERE at > NOW() - INTERVAL '${PRICEABLE_WINDOW}')::int AS recent,
+              COUNT(*)::int AS "weekPoints",
+              COUNT(DISTINCT price_usd)::int AS "weekDistinct"
+         FROM stock_prices WHERE at > NOW() - INTERVAL '${MOVEMENT_WINDOW}'
+        GROUP BY symbol`,
     );
-    const found = new Set((rows as { symbol: string }[]).map((r) => r.symbol));
+    const stats = rows as PriceStats[];
+    const found = new Set(stats.filter(hasRealPriceData).map((r) => r.symbol));
+    // Nothing passes: snapshots haven't started (or something is wrong), so
+    // the gate can't know yet.
     symbols = found.size ? found : null;
   } catch {
     symbols = null;

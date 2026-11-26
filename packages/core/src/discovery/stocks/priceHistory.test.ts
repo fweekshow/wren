@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { changePct, downsample, dropRepeats, onlyPriceable } from "./priceHistory.js";
+import { changePct, downsample, dropRepeats, hasRealPriceData, onlyPriceable } from "./priceHistory.js";
+
+describe("real price data gate", () => {
+  const stats = (recent: number, weekPoints: number, weekDistinct: number) => ({ symbol: "Xc", recent, weekPoints, weekDistinct });
+
+  it("lists a stock with a week of moving prices", () => {
+    expect(hasRealPriceData(stats(300, 2000, 400))).toBe(true);
+    // Just at the minimum.
+    expect(hasRealPriceData(stats(1, 10, 2))).toBe(true);
+  });
+
+  it("hides a flat line: a stale pool repeating one price (0.00%)", () => {
+    // SNOWc today: 34 pool snapshots, all 270.80.
+    expect(hasRealPriceData(stats(34, 34, 1))).toBe(false);
+  });
+
+  it("hides a stock with too little history", () => {
+    expect(hasRealPriceData(stats(9, 9, 9))).toBe(false);
+  });
+
+  it("hides a stock with no price in the last 4 days", () => {
+    expect(hasRealPriceData(stats(0, 500, 80))).toBe(false);
+  });
+});
 
 describe("only priceable stocks", () => {
   const items = [{ symbol: "AAPLc" }, { symbol: "ARMc" }, { symbol: "NVDAc" }];
