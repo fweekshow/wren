@@ -7,10 +7,6 @@
 // - Snapshots: every 5 minutes, the same live price quotes use
 //   (liveSharePriceUsd: Chainlink, or the Aerodrome pool when they drift or
 //   the market is closed). This makes the 1D line smooth.
-// - Stocks with no Chainlink feed have no past rounds to read, so Yahoo
-//   Finance's free chart API backfills them (hourly for a month, daily for a
-//   year; market hours only) and gives their previous close for the "today"
-//   change. Their live price stays the 24/7 Aerodrome pool.
 //
 // Rows are keyed by (symbol, at) with snapshots rounded to their 5-minute
 // slot, so several server replicas running the job never duplicate rows.
@@ -23,7 +19,7 @@ import { db } from "@/discovery/db.js";
 import { listSpotBuyableOffers } from "@/discovery/doppler/stockCatalog.js";
 import { isUsEquityMarketHours, resolveStockToken } from "@/discovery/doppler/stockRegistry.js";
 import { liveSharePriceUsd } from "@/discovery/stocks/giftStock.service.js";
-import { candleCloseAt, previousClose, yahooChart, type YahooInterval, type YahooRange } from "@/discovery/stocks/yahooQuotes.js";
+import { navFeeds, withNavFeed } from "@/discovery/stocks/navFeeds.js";
 import { logger } from "@/utils/logger.js";
 
 export type PriceRange = "1D" | "1W" | "1M" | "1Y";
@@ -90,9 +86,12 @@ export async function snapshotStockPrices(now = new Date()): Promise<number> {
   await ensureTable();
   const slot = new Date(Math.floor(now.getTime() / SNAPSHOT_SLOT_MS) * SNAPSHOT_SLOT_MS);
   const rows: { symbol: string; at: Date; price: number; source: string }[] = [];
+  const feeds = await navFeeds();
   for (const offer of listSpotBuyableOffers()) {
-    const entry = resolveStockToken(offer.symbol);
-    if (!entry) continue;
+    const resolved = resolveStockToken(offer.symbol);
+    if (!resolved) continue;
+    // A feed Coinbase added after the catalog was written is used right away.
+    const entry = { ...resolved, feedAddress: feeds.get(resolved.address.toLowerCase()) ?? resolved.feedAddress };
     const live = await liveSharePriceUsd(entry).catch(() => null);
     if (!live) continue;
     // Chainlink pauses when the US market is closed. Without a live pool price,
@@ -166,8 +165,10 @@ export async function backfillStockFromChainlink(symbol: string): Promise<number
   const done = await db.query(`SELECT 1 FROM stock_price_backfills WHERE symbol = $1`, [symbol]);
   if (done.rows.length) return 0;
   const entry = resolveStockToken(symbol);
-  if (!entry?.feedAddress) return 0;
-  const feed = entry.feedAddress as Address;
+  if (!entry) return 0;
+  // Coinbase's official feed list first, so a newly added feed backfills too.
+  const feed = ((await navFeeds()).get(entry.address.toLowerCase()) ?? entry.feedAddress) as Address | null;
+  if (!feed) return 0;
   const c = client();
   const cutoffSec = Math.floor((Date.now() - BACKFILL_DAYS * 86_400_000) / 1000);
 
@@ -219,46 +220,6 @@ export async function backfillStockFromChainlink(symbol: string): Promise<number
   return rows.length;
 }
 
-// ── Yahoo backfill (stocks with no Chainlink feed) ──────────────────────────
-
-const YAHOO_BACKFILL: { range: YahooRange; interval: YahooInterval }[] = [
-  { range: "1mo", interval: "1h" },
-  { range: "1y", interval: "1d" },
-];
-
-/**
- * Saves a feedless stock's Yahoo candles: hourly for the last month, daily for
- * the last year. Runs once per stock (recorded in stock_price_backfills as
- * `SYMBOL:yahoo`, so a feed added later still gets its Chainlink backfill).
- * Not recorded when Yahoo fails, so the next start retries.
- */
-export async function backfillStockFromYahoo(symbol: string): Promise<number> {
-  await ensureTable();
-  const key = `${symbol}:yahoo`;
-  const done = await db.query(`SELECT 1 FROM stock_price_backfills WHERE symbol = $1`, [key]);
-  if (done.rows.length) return 0;
-  const entry = resolveStockToken(symbol);
-  if (!entry || entry.feedAddress) return 0;
-  const rows: { symbol: string; at: Date; price: number; source: string }[] = [];
-  for (const { range, interval } of YAHOO_BACKFILL) {
-    const chart = await yahooChart(symbol, range, interval);
-    if (!chart) return 0;
-    const now = Date.now();
-    for (const [t, close] of chart.candles) {
-      // The running candle's close isn't final yet: snapshots cover it.
-      const at = candleCloseAt(t, interval);
-      if (at > now) continue;
-      rows.push({ symbol, at: new Date(at), price: close, source: "yahoo" });
-    }
-  }
-  await insertPrices(rows);
-  await db.query(
-    `INSERT INTO stock_price_backfills (symbol, rounds) VALUES ($1, $2) ON CONFLICT (symbol) DO NOTHING`,
-    [key, rows.length],
-  );
-  return rows.length;
-}
-
 // ── Reads ──────────────────────────────────────────────────────────────────
 
 /** Keeps the last price in each time bucket so a chart is at most `max` points. */
@@ -291,7 +252,7 @@ export async function stockPriceHistory(
 ): Promise<{ symbol: string; range: PriceRange; priceUsd: number | null; changePct: number | null; points: [number, number][] }> {
   await ensureTable();
   const since = new Date(Date.now() - RANGE_MS[range]);
-  const [inRange, before, prevClose] = await Promise.all([
+  const [inRange, before] = await Promise.all([
     db.query(
       `SELECT EXTRACT(EPOCH FROM at) * 1000 AS t, price_usd::float AS p
          FROM stock_prices WHERE symbol = $1 AND at >= $2 ORDER BY at`,
@@ -301,7 +262,6 @@ export async function stockPriceHistory(
       `SELECT price_usd::float AS p FROM stock_prices WHERE symbol = $1 AND at < $2 ORDER BY at DESC LIMIT 1`,
       [symbol, since.toISOString()],
     ),
-    range === "1D" ? yahooPreviousClose(symbol) : null,
   ]);
   const points = (inRange.rows as { t: string | number; p: number }[]).map(
     (r) => [Number(r.t), Number(r.p)] as [number, number],
@@ -309,22 +269,7 @@ export async function stockPriceHistory(
   const last = points.length ? points[points.length - 1][1] : null;
   // Change is measured from the last price before the range opened.
   const baseline = (before.rows[0] as { p?: number } | undefined)?.p ?? (points[0]?.[1] ?? null);
-  // Feedless stocks' "today" is the live (pool) price against the previous
-  // trading day's close, like a brokerage shows it.
-  const change = prevClose ? changePct(prevClose, last) : changePct(baseline, last);
-  return { symbol, range, priceUsd: last, changePct: change, points: downsample(dropRepeats(points)) };
-}
-
-/**
- * The previous trading day's close from Yahoo for a stock with no Chainlink
- * feed; null for feed stocks or when Yahoo fails, which keeps the rolling-24h
- * change.
- */
-async function yahooPreviousClose(symbol: string): Promise<number | null> {
-  const entry = resolveStockToken(symbol);
-  if (!entry || entry.feedAddress) return null;
-  const chart = await yahooChart(symbol).catch(() => null);
-  return (chart && previousClose(chart.candles)?.price) ?? null;
+  return { symbol, range, priceUsd: last, changePct: changePct(baseline, last), points: downsample(dropRepeats(points)) };
 }
 
 /**
@@ -343,49 +288,31 @@ export function dropRepeats(points: [number, number][]): [number, number][] {
 }
 
 // ── Which stocks Wren can price ────────────────────────────────────────────
-// Some catalog stocks have no Chainlink feed and no Aerodrome pool, so quotes
-// fail; others have a pool nobody trades and no history yet, so they'd show a
-// flat line and 0.00%. A stock is shown only with real data: a price saved in
-// the last 4 days, and over the last week at least 10 points with more than
-// one distinct price. It comes back by itself once data exists (a Yahoo or
-// Chainlink backfill, or the pool starts trading).
+// A stock is shown only if it has a Chainlink feed on Coinbase's official
+// list (navFeeds.ts) and a price was saved for it in the last 4 days. Stocks
+// with only an Aerodrome pool can sit at a stale price nobody trades, so they
+// stay hidden; one comes back by itself once Coinbase publishes its feed.
 const PRICEABLE_WINDOW = "4 days";
-const MOVEMENT_WINDOW = "7 days";
-const MIN_WEEK_POINTS = 10;
 let priceableCache: { at: number; symbols: Set<string> | null } | null = null;
 
-export type PriceStats = { symbol: string; recent: number; weekPoints: number; weekDistinct: number };
-
-/** Whether a stock's saved prices are real data rather than a frozen line. */
-export function hasRealPriceData(s: PriceStats): boolean {
-  return s.recent > 0 && s.weekPoints >= MIN_WEEK_POINTS && s.weekDistinct > 1;
-}
-
 /**
- * Symbols with real recent price data, or null when that can't be known yet
- * (no snapshots so far, or the database is unreachable). Callers show
- * everything on null so the list is never empty by mistake.
+ * Symbols with a Chainlink feed and a recent saved price. When saved prices
+ * can't be known yet (no snapshots so far, or the database is unreachable),
+ * every stock with a feed, so the list is never empty by mistake.
  */
 export async function priceableSymbols(): Promise<Set<string> | null> {
   if (priceableCache && Date.now() - priceableCache.at < 5 * 60_000) return priceableCache.symbols;
-  let symbols: Set<string> | null = null;
+  const withFeed = new Set(withNavFeed(listSpotBuyableOffers(), await navFeeds()).map((o) => o.symbol));
+  let symbols: Set<string>;
   try {
     await ensureTable();
     const { rows } = await db.query(
-      `SELECT symbol,
-              COUNT(*) FILTER (WHERE at > NOW() - INTERVAL '${PRICEABLE_WINDOW}')::int AS recent,
-              COUNT(*)::int AS "weekPoints",
-              COUNT(DISTINCT price_usd)::int AS "weekDistinct"
-         FROM stock_prices WHERE at > NOW() - INTERVAL '${MOVEMENT_WINDOW}'
-        GROUP BY symbol`,
+      `SELECT DISTINCT symbol FROM stock_prices WHERE at > NOW() - INTERVAL '${PRICEABLE_WINDOW}'`,
     );
-    const stats = rows as PriceStats[];
-    const found = new Set(stats.filter(hasRealPriceData).map((r) => r.symbol));
-    // Nothing passes: snapshots haven't started (or something is wrong), so
-    // the gate can't know yet.
-    symbols = found.size ? found : null;
+    const found = new Set((rows as { symbol: string }[]).map((r) => r.symbol).filter((s) => withFeed.has(s)));
+    symbols = found.size ? found : withFeed;
   } catch {
-    symbols = null;
+    symbols = withFeed;
   }
   priceableCache = { at: Date.now(), symbols };
   return symbols;
@@ -395,7 +322,7 @@ export function onlyPriceable<T extends { symbol: string }>(items: T[], priceabl
   return priceable ? items.filter((i) => priceable.has(i.symbol)) : items;
 }
 
-/** Every sendable stock with its latest price, "today" change and a 1D sparkline. */
+/** Every sendable stock with its latest price, change over 24h and a 1D sparkline. */
 export async function stockMarket(): Promise<
   { symbol: string; name: string; priceUsd: number | null; changePct: number | null; spark: number[] }[]
 > {
@@ -434,8 +361,6 @@ export function startPriceHistoryJob(): void {
       try {
         const n = await backfillStockFromChainlink(offer.symbol);
         if (n) logger.info(`[prices] backfilled ${offer.symbol}: ${n} Chainlink rounds`);
-        const y = await backfillStockFromYahoo(offer.symbol);
-        if (y) logger.info(`[prices] backfilled ${offer.symbol}: ${y} Yahoo candles`);
       } catch (err) {
         logger.warn({ err, symbol: offer.symbol }, "[prices] backfill failed");
       }
