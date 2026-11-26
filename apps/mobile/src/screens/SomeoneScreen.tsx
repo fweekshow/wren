@@ -32,8 +32,10 @@ import {
   Person,
   requestContactsPermission,
   searchPeople,
+  toE164 as contactE164,
 } from '../contacts';
-import { importContacts } from '../api';
+import { getPeople, importContacts } from '../api';
+import { SectionLabel } from '../components/Market';
 import { copy } from '../copy';
 import { COUNTRIES, type Country } from '../countries';
 import { CountryPickerScreen } from './CountryPickerScreen';
@@ -59,6 +61,7 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
   const [theirNumber, setTheirNumber] = useState('');
   const [country, setCountry] = useState<Country>(UNITED_STATES);
   const [pickingCountry, setPickingCountry] = useState(false);
+  const [wrenPhones, setWrenPhones] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -110,6 +113,26 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
     };
   }, [perm]);
 
+  // Who's already on Wren. On failure we keep the plain alphabetical book.
+  useEffect(() => {
+    if (perm !== 'granted') return;
+    let cancelled = false;
+    getPeople()
+      .then((res) => {
+        if (cancelled) return;
+        const phones = new Set<string>();
+        for (const w of res.onWren ?? []) {
+          const e = contactE164(w.phone);
+          if (e) phones.add(e);
+        }
+        setWrenPhones(phones);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [perm]);
+
   const ask = async () => {
     const res = await requestContactsPermission();
     if (res.granted) setPerm('granted');
@@ -120,8 +143,34 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
     void Linking.openSettings();
   };
 
-  const filtered = useMemo(() => searchPeople(people, q), [people, q]);
-  const dupFirst = useMemo(() => duplicatedFirstNames(filtered), [filtered]);
+  // Split the book: contacts already on Wren first, everyone else after.
+  // Matched by E.164 phone; the matched number becomes the one we send to.
+  // Each contact lands in exactly one section.
+  const { onWren, rest } = useMemo(() => {
+    if (!wrenPhones.size) return { onWren: [] as Person[], rest: people };
+    const onWren: Person[] = [];
+    const rest: Person[] = [];
+    for (const p of people) {
+      const hit = p.phones.find((ph) => ph.e164 && wrenPhones.has(ph.e164));
+      if (hit) onWren.push({ ...p, bestPhone: hit });
+      else rest.push(p);
+    }
+    return { onWren, rest };
+  }, [people, wrenPhones]);
+
+  const onWrenShown = useMemo(() => searchPeople(onWren, q), [onWren, q]);
+  const restShown = useMemo(() => searchPeople(rest, q), [rest, q]);
+  const dupFirst = useMemo(
+    () => duplicatedFirstNames([...onWrenShown, ...restShown]),
+    [onWrenShown, restShown],
+  );
+  // Labels only when both groups exist; otherwise it's today's single list.
+  // Empty sections are dropped so ListEmptyComponent can render.
+  const labelled = onWren.length > 0 && rest.length > 0;
+  const sections = [
+    { key: 'wren', title: labelled ? copy.onWrenLabel : '', data: onWrenShown },
+    { key: 'rest', title: labelled ? copy.notOnWren : '', data: restShown },
+  ].filter((s) => s.data.length > 0);
 
   const typedPhone = toE164(theirNumber, country.dial);
   const canAdd = theirName.trim().length > 0 && !!typedPhone;
@@ -200,8 +249,9 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
             </View>
           ) : (
             <SectionList
-              sections={[{ title: 'all', data: filtered }]}
+              sections={sections}
               keyExtractor={(p) => p.id}
+              stickySectionHeadersEnabled={false}
               contentContainerStyle={styles.listPad}
               renderItem={({ item, index, section }) => {
                 const last = index === section.data.length - 1;
@@ -239,7 +289,13 @@ export function SomeoneScreen({ onBack, onPick, recentIds }: Props) {
                   <Text style={styles.empty}>No match.</Text>
                 )
               }
-              renderSectionHeader={() => null}
+              renderSectionHeader={({ section }) =>
+                section.title ? (
+                  <View style={styles.sectionLabel}>
+                    <SectionLabel>{section.title}</SectionLabel>
+                  </View>
+                ) : null
+              }
             />
           )}
           {bookEmpty && (
@@ -275,6 +331,7 @@ const styles = StyleSheet.create({
   search: { paddingHorizontal: spacing.screenPad, paddingTop: 24, paddingBottom: 8 },
   recentsRow: { paddingHorizontal: 24, paddingVertical: 8, gap: 0 },
   listPad: { paddingHorizontal: spacing.screenPad, paddingTop: 8, paddingBottom: 40 },
+  sectionLabel: { paddingHorizontal: 8, paddingTop: 20, paddingBottom: 4 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
