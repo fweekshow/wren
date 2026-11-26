@@ -25,10 +25,13 @@ export function Arrow({ up, size = 12, fill }: { up: boolean; size?: number; fil
 export function Change({
   value,
   on,
+  compact,
   style,
 }: {
   value: number | null | undefined;
   on?: string;
+  /** Tighter pill for stacked rows, where the next card tucks over the bottom. */
+  compact?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   if (value == null || !Number.isFinite(value)) return null;
@@ -40,8 +43,11 @@ export function Change({
   const tone = flat ? color.textSecondary : up ? color.moveUpInk : color.moveDownInk;
   return (
     // On a colored card, a small white pill keeps green/red readable on any color.
-    <View style={[on ? styles.changeOnCard : styles.change, style]} accessibilityLabel={label}>
-      {!flat && <Arrow up={up} fill={tone} />}
+    <View
+      style={[on ? styles.changeOnCard : styles.change, on && compact && styles.changeCompact, style]}
+      accessibilityLabel={label}
+    >
+      {!flat && <Arrow up={up} fill={tone} size={compact ? 10 : 12} />}
       <Text style={[styles.changeText, { color: tone }]}>{pct}</Text>
     </View>
   );
@@ -273,6 +279,7 @@ const styles = StyleSheet.create({
     gap: 5,
     alignSelf: 'flex-start',
   },
+  changeCompact: { height: 20, paddingLeft: 5, paddingRight: 7, gap: 3 },
   changeOnCard: {
     height: 26,
     paddingLeft: 7,
@@ -423,11 +430,11 @@ export function WalletCard({
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={[tileStyles.walletName, { color: colors.ink }]}>{value}</Text>
-        <View style={{ marginTop: 4 }}>
+        <View style={{ marginTop: footer ? 4 : 2 }}>
           {footer ? (
             <Text style={[type.caption, { color: colors.ink }]}>{footer}</Text>
           ) : (
-            <Change value={change} on={colors.ink} />
+            <Change value={change} on={colors.ink} compact />
           )}
         </View>
       </View>

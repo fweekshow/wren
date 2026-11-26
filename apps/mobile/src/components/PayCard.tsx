@@ -65,6 +65,8 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [payUrl, setPayUrl] = useState<string | null>(null);
+  // Privy's card sheet draws at the app root, under this Modal: step aside while it's open.
+  const [privyOpen, setPrivyOpen] = useState(false);
   const cashBefore = useRef<number | null>(null);
   const alive = useRef(false);
   const webRef = useRef<WebView>(null);
@@ -78,6 +80,7 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
     setBusy(false);
     setCode('');
     setPayUrl(null);
+    setPrivyOpen(false);
     cashBefore.current = null;
     getCash()
       .then((c) => {
@@ -206,11 +209,20 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
   };
 
   // ── Card (Privy) ───────────────────────────────────────────────────────
-  const card = async () => {
-    const address = wallets.wallets[0]?.address;
-    if (!address) return;
+  // Card: hide this sheet, and only once iOS reports it gone (onDismiss) open
+  // Privy's sheet; iOS won't present one sheet while another is closing.
+  const cardPending = useRef(false);
+  const card = () => {
+    if (!wallets.wallets[0]?.address) return;
     setError(null);
     track('add_cash_started', { amount, method: 'card' });
+    cardPending.current = true;
+    setPrivyOpen(true);
+  };
+
+  const runCard = async () => {
+    const address = wallets.wallets[0]?.address;
+    if (!address) return;
     try {
       await fundWallet({
         address,
@@ -218,9 +230,11 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
         asset: 'USDC',
         amount: amount.toFixed(2),
       });
+      setPrivyOpen(false);
       void waitForCash();
     } catch {
-      setError(copy.didntGo);
+      // Privy rejects when the person closes its sheet: just come back here.
+      setPrivyOpen(false);
     }
   };
 
@@ -228,7 +242,16 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
   const amountLabel = usd2(amount);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => {
+    <Modal
+      visible={visible && !privyOpen}
+      transparent
+      animationType="slide"
+      onDismiss={() => {
+        if (!cardPending.current) return;
+        cardPending.current = false;
+        void runCard();
+      }}
+      onRequestClose={() => {
       if (closable) onClose();
     }}>
       <Pressable
@@ -250,7 +273,7 @@ export function PayCard({ visible, amount, onClose, onPaid }: Props) {
                   {copy.applePay}
                 </Button>
               )}
-              <Button variant="secondary" disabled={busy} onPress={() => void card()}>
+              <Button variant="secondary" disabled={busy} onPress={card}>
                 {copy.payWithCard}
               </Button>
             </View>
