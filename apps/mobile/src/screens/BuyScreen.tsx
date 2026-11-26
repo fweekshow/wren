@@ -126,6 +126,8 @@ export function BuyScreen({ initialSymbol, onBack, onBought, onChangeStock }: Pr
       <PayCard
         visible={paying}
         amount={topUp}
+        headline={numeric}
+        note={(cash ?? 0) >= 0.01 ? copy.fromCashPart(usd2(cash ?? 0)) : undefined}
         onClose={() => setPaying(false)}
         onPaid={(c) => {
           setPaying(false);

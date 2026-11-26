@@ -269,6 +269,13 @@ export function AmountScreen({ person, phone, initialSymbol, onBack, onSent, onC
       <PayCard
         visible={paying}
         amount={topUpFor(Math.max(shortBy, 0.01))}
+        headline={numeric}
+        note={[
+          quote ? (quote.firstSend ? copy.firstSendFree : copy.plusSendFee(usd2(quote.feeUsd))) : null,
+          (cash ?? 0) >= 0.01 ? copy.fromCashPart(usd2(cash ?? 0)) : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
         onClose={() => setPaying(false)}
         onPaid={(c) => {
           setPaying(false);
